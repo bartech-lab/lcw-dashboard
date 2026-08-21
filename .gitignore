@@ -1,0 +1,19 @@
+# secrets — never commit
+.env
+.env.local
+
+# user config (ship config.example.yaml instead)
+config.yaml
+
+# build output
+/lcw-dashboard
+/lcwd
+web/dist/*
+!web/dist/.gitkeep
+
+# node, only ever used for the optional `tsc --noEmit` type check
+node_modules/
+
+# editor / OS
+.DS_Store
+*.swp
