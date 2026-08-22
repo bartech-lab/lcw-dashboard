@@ -46,6 +46,10 @@ type Controller struct {
 	inFlightCoins    bool
 	inFlightOverview bool
 	lastCoinSuccess  time.Time
+	// lastSuccessByKey makes freshness per view. A single timestamp let a top
+	// fetch mark favourites as fresh, so returning to a favourites tab skipped
+	// the fetch it needed.
+	lastSuccessByKey map[string]time.Time
 	lastFocusRefresh time.Time
 	failures         int
 	lastError        *snapshot.WireError
@@ -84,10 +88,11 @@ func New(d Deps) *Controller {
 		hub: d.Hub, world: d.World, watch: d.Watch, hist: d.Hist,
 		engine: d.Engine, index: d.Index, notify: d.Notify,
 
-		cmdCh:     make(chan command, 64),
-		resultCh:  make(chan result, 8),
-		presence:  newPresence(d.Cfg.Poll.PresenceTTL.D()),
-		startedAt: d.Clk.Now(),
+		cmdCh:            make(chan command, 64),
+		resultCh:         make(chan result, 8),
+		lastSuccessByKey: make(map[string]time.Time),
+		presence:         newPresence(d.Cfg.Poll.PresenceTTL.D()),
+		startedAt:        d.Clk.Now(),
 	}
 }
 
@@ -229,9 +234,17 @@ func (c *Controller) handleCommand(ctx context.Context, cmd command) {
 
 	switch cmd.kind {
 	case cmdPresence:
+		before := c.activeKey()
 		changed := c.presence.upsert(cmd.clientID, cmd.view, cmd.currency, cmd.visible, now)
 		c.recomputeRotation()
-		reply := c.maybeFocusRefresh(ctx, changed)
+		// A view or currency switch is an explicit intent, not a wake-up to
+		// coalesce, so it must not be swallowed by the focus debounce.
+		switched := c.activeKey() != before
+		reply := c.maybeFocusRefresh(ctx, changed, switched)
+		// Report the caller's own key, not the rotation head. With several tabs
+		// on different views the head belongs to whichever was activated last,
+		// and telling a favourites tab it is on "top" is actively misleading.
+		reply.ViewKey = c.keyFor(cmd.clientID).String()
 		c.resetCoinTimer()
 		// The overview interval also depends on visibility, so a tab becoming
 		// visible must not leave it on the slow hidden schedule.
@@ -305,14 +318,19 @@ func (c *Controller) handleCommand(ctx context.Context, cmd command) {
 
 // maybeFocusRefresh implements the focus rule inside the same controller turn as
 // the timer reset, so there is no window in which both fire.
-func (c *Controller) maybeFocusRefresh(ctx context.Context, changed bool) RefreshReply {
+//
+// switched means the active view key changed. The debounce exists to coalesce
+// several tabs waking at once; applying it to a deliberate view switch left the
+// table showing the previous view's data.
+func (c *Controller) maybeFocusRefresh(ctx context.Context, changed, switched bool) RefreshReply {
 	reply := RefreshReply{
 		ViewKey:    c.activeKey().String(),
 		IntervalMs: c.resolveInterval().Milliseconds(),
 		Revision:   c.revision,
 	}
+
 	_, visible := c.presence.counts()
-	if visible == 0 {
+	if visible == 0 && !switched {
 		reply.Reason = "hidden"
 		return reply
 	}
@@ -320,19 +338,23 @@ func (c *Controller) maybeFocusRefresh(ctx context.Context, changed bool) Refres
 		reply.Reason = "in_flight"
 		return reply
 	}
-	age := c.clk.Since(c.lastCoinSuccess)
-	if !changed && age < c.cfg.Poll.FocusRefreshThreshold.D() {
-		reply.Reason = "fresh"
-		return reply
-	}
-	// Debounce is what stops eight tabs waking together from firing eight fetches.
-	if c.clk.Since(c.lastFocusRefresh) < c.cfg.Poll.FocusDebounce.D() {
-		reply.Reason = "debounced"
-		return reply
-	}
-	if _, ok := c.world.Load().Coins[c.activeKey().String()]; ok && age < c.cfg.Poll.FocusRefreshThreshold.D() {
-		reply.Reason = "fresh"
-		return reply
+	age := c.ageOf(c.activeKey())
+	if !switched {
+		if !changed && age < c.cfg.Poll.FocusRefreshThreshold.D() {
+			reply.Reason = "fresh"
+			return reply
+		}
+		// Debounce is what stops eight tabs waking together from firing eight
+		// fetches. A view switch skips it.
+		if c.clk.Since(c.lastFocusRefresh) < c.cfg.Poll.FocusDebounce.D() {
+			reply.Reason = "debounced"
+			return reply
+		}
+		if _, ok := c.world.Load().Coins[c.activeKey().String()]; ok &&
+			age < c.cfg.Poll.FocusRefreshThreshold.D() {
+			reply.Reason = "fresh"
+			return reply
+		}
 	}
 	c.lastFocusRefresh = c.clk.Now()
 	if c.dispatchCoins(ctx, "focus") {
@@ -341,6 +363,16 @@ func (c *Controller) maybeFocusRefresh(ctx context.Context, changed bool) Refres
 		reply.Reason = "budget"
 	}
 	return reply
+}
+
+// ageOf reports how stale one view key is. An unfetched key is infinitely old,
+// so switching to it always fetches.
+func (c *Controller) ageOf(k ViewKey) time.Duration {
+	at, ok := c.lastSuccessByKey[k.String()]
+	if !ok {
+		return time.Duration(1 << 62)
+	}
+	return c.clk.Since(at)
 }
 
 func (c *Controller) housekeep(ctx context.Context) {
@@ -383,6 +415,19 @@ func (c *Controller) defaultKey() ViewKey {
 		Currency: c.cfg.Currency.Default,
 	}
 	if k.View == snapshot.ViewFavourites {
+		k.WatchHash = c.watch.Hash()
+	}
+	return k
+}
+
+// keyFor returns the view key a specific client is subscribed to.
+func (c *Controller) keyFor(clientID string) ViewKey {
+	cl, ok := c.presence.clients[clientID]
+	if !ok {
+		return c.activeKey()
+	}
+	k := ViewKey{View: cl.View, Currency: cl.Currency}
+	if cl.View == snapshot.ViewFavourites {
 		k.WatchHash = c.watch.Hash()
 	}
 	return k

@@ -93,17 +93,28 @@ func (p *presence) counts() (total, visible int) {
 	return total, visible
 }
 
-// keys returns the distinct keys of visible clients, most recently activated
-// first, capped at max. Hidden clients get no rotation slot: they receive
-// whatever lands, marked with its age.
+// keys returns the distinct view keys to poll, most recently activated first,
+// capped at max.
+//
+// Visible clients decide the set. If none are visible, hidden clients still do:
+// a backgrounded favourites tab must keep the server on favourites, just at the
+// idle interval. Falling back to the config default here would poll a view
+// nobody is looking at and leave the returning tab with nothing.
 func (p *presence) keys(watchHash string, max int) []ViewKey {
+	if keys := p.keysFor(watchHash, max, true); len(keys) > 0 {
+		return keys
+	}
+	return p.keysFor(watchHash, max, false)
+}
+
+func (p *presence) keysFor(watchHash string, max int, visibleOnly bool) []ViewKey {
 	type entry struct {
 		key ViewKey
 		at  time.Time
 	}
 	best := make(map[string]entry)
 	for _, c := range p.clients {
-		if !c.Visible {
+		if visibleOnly && !c.Visible {
 			continue
 		}
 		k := ViewKey{View: c.View, Currency: c.Currency}

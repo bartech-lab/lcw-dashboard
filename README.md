@@ -148,7 +148,7 @@ Rules use `crosses_above` for edges and `hysteresis_pct` to stop a price
 oscillating around a threshold from alerting repeatedly. A test asserts that 50
 oscillations of 99,999 to 100,001 produce exactly one alert.
 
-## Two things the API cannot do
+## Three things the API cannot do
 
 **It cannot sort by a percentage change.** The `sort` parameter accepts only
 `rank`, `price`, `volume`, `code`, `name` and `age`. So the **This page /
@@ -160,6 +160,12 @@ distinction visible rather than misleading.
 **It has no search endpoint.** Search runs against a local index of the top 2,000
 coins, built by walking `/coins/list` once a day for 20 credits and cached to
 disk.
+
+**It does not return liquidity for a list of coins.** Verified live: neither
+`/coins/list` nor `/coins/map` includes the field at all — it is absent, not
+null. Only `/coins/single` has it, which would cost one credit per coin per
+refresh. So there is no Liquidity ±2% column; it appears in the coin detail view,
+where that endpoint is already being called.
 
 Their table's Categories, Exchanges and Platforms filters have no public
 endpoint either, so they are absent. Category filtering client-side is possible

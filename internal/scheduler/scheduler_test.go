@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -760,5 +761,80 @@ func TestFiatDenylistRemovesACurrency(t *testing.T) {
 		if f.Code == "EUR" {
 			t.Error("EUR should have been removed")
 		}
+	}
+}
+
+// A backgrounded favourites tab must keep the server on favourites. Falling back
+// to the config default polled a view nobody was looking at, and left the tab
+// with nothing when it came back.
+func TestHiddenClientKeepsItsView(t *testing.T) {
+	h := newHarness(t, nil)
+
+	h.ctrl.Presence("tab1", snapshot.ViewFavourites, "USD", true)
+	h.settle()
+	if got := h.status().ActiveViewKey; !strings.HasPrefix(got, "favourites|") {
+		t.Fatalf("visible: ActiveViewKey = %q, want favourites", got)
+	}
+
+	h.ctrl.Presence("tab1", snapshot.ViewFavourites, "USD", false)
+	h.settle()
+	if got := h.status().ActiveViewKey; !strings.HasPrefix(got, "favourites|") {
+		t.Errorf("hidden: ActiveViewKey = %q, want favourites to be kept", got)
+	}
+
+	// Only with no clients at all does it fall back to the configured default.
+	h.ctrl.Disconnect("tab1")
+	h.settle()
+	if got := h.status().ActiveViewKey; !strings.HasPrefix(got, "top|") {
+		t.Errorf("no clients: ActiveViewKey = %q, want the configured default", got)
+	}
+}
+
+// The control reply must not contradict the request.
+func TestPresenceReplyReportsTheRequestedView(t *testing.T) {
+	h := newHarness(t, nil)
+
+	reply := h.ctrl.Presence("tab1", snapshot.ViewFavourites, "USD", false)
+	if !strings.HasPrefix(reply.ViewKey, "favourites|") {
+		t.Errorf("ViewKey = %q; a hidden favourites client was told it is on top",
+			reply.ViewKey)
+	}
+}
+
+// Freshness is per view key. One global timestamp let a top fetch mark
+// favourites as fresh, so returning to a favourites tab skipped its fetch.
+func TestFreshnessIsPerViewKey(t *testing.T) {
+	h := newHarness(t, nil)
+
+	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", true)
+	h.settle()
+	before := h.up.count("/coins/map")
+
+	// Switch to favourites immediately, while the top fetch is seconds old.
+	h.ctrl.Presence("tab1", snapshot.ViewFavourites, "USD", true)
+	h.settle()
+
+	if got := h.up.count("/coins/map"); got <= before {
+		t.Error("switching to favourites did not fetch: the top fetch made it look fresh")
+	}
+}
+
+// With several tabs on different views the rotation head belongs to whichever
+// was activated last, so the reply must describe the caller's own subscription.
+func TestReplyReportsTheCallersOwnKeyNotTheRotationHead(t *testing.T) {
+	h := newHarness(t, nil)
+
+	h.ctrl.Presence("topTab", snapshot.ViewTop, "USD", true)
+	h.settle()
+	favReply := h.ctrl.Presence("favTab", snapshot.ViewFavourites, "USD", true)
+	h.settle()
+	topReply := h.ctrl.Presence("topTab", snapshot.ViewTop, "USD", true)
+	h.settle()
+
+	if !strings.HasPrefix(favReply.ViewKey, "favourites|") {
+		t.Errorf("favourites tab was told %q", favReply.ViewKey)
+	}
+	if !strings.HasPrefix(topReply.ViewKey, "top|") {
+		t.Errorf("top tab was told %q", topReply.ViewKey)
 	}
 }

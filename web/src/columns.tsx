@@ -5,8 +5,12 @@ import * as fmt from "./format";
 // visible" and "which delta windows shown" as two settings; treating them as one
 // gives a single visible-map, a single order array and a single reorder UI.
 
+// No liquidity column. Verified against the live API: neither /coins/list nor
+// /coins/map returns the field at all, and only /coins/single does — one credit
+// per coin per refresh. It is shown in the coin detail view instead, where that
+// endpoint is already being called.
 export type ColumnId =
-  | "rank" | "coin" | "price" | "cap" | "volume" | "liquidity"
+  | "rank" | "coin" | "price" | "cap" | "volume"
   | "d_hour" | "d_day" | "d_week" | "d_month" | "d_quarter" | "d_year"
   | "volCap" | "supply" | "ath" | "fromAth" | "age" | "exchanges";
 
@@ -78,12 +82,6 @@ export const ALL_COLUMNS: ColumnDef[] = [
     apiSort: "volume",
     value: (c) => c.volume,
     text: (c, x) => fmt.compactMoney(c.volume, x.locale, x.currency),
-  },
-  {
-    id: "liquidity", label: "Liquidity ±2%", short: "Liq ±2%", group: "market", align: "right",
-    width: 120, defaultVisible: true, sortable: true,
-    value: (c) => c.liquidity,
-    text: (c, x) => fmt.compactMoney(c.liquidity, x.locale, x.currency),
   },
 
   deltaColumn("d_hour", "hour", "1h", true),
@@ -160,7 +158,6 @@ export const GROUP_LABELS: Record<Group, string> = {
 export const HIDE_BELOW: Partial<Record<ColumnId, number>> = {
   d_year: 1420,
   d_quarter: 1330,
-  liquidity: 1240,
   d_month: 1160,
   volume: 1080,
   d_week: 1000,

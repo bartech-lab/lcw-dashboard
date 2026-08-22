@@ -43,7 +43,7 @@ export function defaults(): Prefs {
     sortCol: "rank",
     sortDir: "asc",
     sortScope: "page",
-    pageSize: 50,
+    pageSize: 100,
     columns: { visible, order: [...DEFAULT_ORDER] },
     presets: [],
     hideStablecoins: false,
@@ -136,7 +136,9 @@ export function reconcile(p: Prefs): Prefs {
     columns: { visible, order },
     presets: Array.isArray(p.presets) ? p.presets.slice(0, 20) : [],
     watchlist: Array.isArray(p.watchlist)
-      ? p.watchlist.filter((s) => /^[A-Z0-9_-]{1,16}$/.test(s)).slice(0, 500)
+      // Codes reach 45 characters: Live Coin Watch pads duplicated tickers with
+      // underscores. A 16-char cap silently dropped them from the boot cache.
+      ? p.watchlist.filter((s) => /^[A-Za-z0-9_-]{1,64}$/.test(s)).slice(0, 500)
       : [],
   };
 }

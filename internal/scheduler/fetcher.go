@@ -196,6 +196,7 @@ func (c *Controller) handleResult(ctx context.Context, res result) {
 	c.lastError = nil
 	c.staleSince = nil
 	c.lastCoinSuccess = now
+	c.lastSuccessByKey[res.key.String()] = now
 
 	payload := &snapshot.Coins{
 		View: res.key.View, Currency: res.key.Currency,
