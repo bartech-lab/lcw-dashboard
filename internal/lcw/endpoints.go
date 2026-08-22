@@ -16,7 +16,7 @@ func (c *Client) Status(ctx context.Context) error {
 	return c.post(ctx, "/status", false, nil, nil)
 }
 
-// Credits reports the remaining daily allowance. Costs 1 credit — checking the
+// Credits reports the remaining daily allowance. Costs 1 credit: checking the
 // budget spends from it, so do not poll this tightly.
 func (c *Client) Credits(ctx context.Context) (Credits, error) {
 	var out Credits
@@ -91,7 +91,7 @@ type CoinsMapParams struct {
 // CoinsMap returns exactly the requested coins, ignoring rank entirely. Costs
 // 1 credit.
 //
-// This is how the watchlist works: a coin ranked #731 is as cheap to fetch as
+// This is how the watchlist works: a coin ranked #32000 is as cheap to fetch as
 // Bitcoin, and one request covers the whole list. Codes the API does not
 // recognise are omitted from the response rather than reported, so callers
 // should diff requested against returned to notice a bad code.

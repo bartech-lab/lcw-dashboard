@@ -76,6 +76,27 @@
 .dot-info { background: var(--status-info); }
 .pill button { color: var(--status-info); font-size: var(--fs-sm); text-decoration: underline; }
 
+/* refresh timer */
+.timer { display: inline-flex; align-items: center; gap: var(--space-2); }
+.timer-text { color: var(--text-secondary); }
+.timer-next { color: var(--text-muted); font-size: var(--fs-xs); }
+/* Fills as the data ages, so the wait is readable without counting seconds. */
+.timer-bar {
+  width: 34px; height: 3px; flex: none;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.timer-bar i {
+  display: block; height: 100%;
+  background: var(--status-info);
+  border-radius: 999px;
+  transition: width 1s linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  .timer-bar i { transition: none; }
+}
+
 /* titles */
 .titles { text-align: center; padding: var(--space-5) 0 var(--space-4); }
 .titles h1 { margin: 0; font-size: var(--fs-xl); font-weight: 600; }

@@ -1,6 +1,6 @@
 # Setting up a second machine
 
-Read the credit warning first — it is the one thing that bites.
+Read the credit warning first. It is the one thing that bites.
 
 ## Credits are per API key, not per machine
 
@@ -34,7 +34,7 @@ search_index:
 Leave the index enabled on whichever machine you use more.
 
 **C. Share the key and only run one at a time.** Fine if the second machine is a
-laptop you use occasionally — just do not enable the service at login on both.
+laptop you use occasionally. Just do not enable the service at login on both.
 
 You will know if you get this wrong. The server reconciles against `/credits`
 every 15 minutes and logs a warning when the API's count exceeds its own:
@@ -47,7 +47,7 @@ The dashboard also shows a `Throttled` pill once the budget tightens.
 
 ## Install
 
-Needs Go 1.24 or newer. Nothing else — no Node, no `node_modules`.
+Needs Go 1.24 or newer. Nothing else: no Node, no `node_modules`.
 
 ```sh
 git clone https://github.com/bartech-lab/lcw-dashboard.git
@@ -138,7 +138,7 @@ curl -X PUT -H 'content-type: application/json' \
   http://127.0.0.1:8787/api/watchlist
 ```
 
-**View settings** — visible columns, order, theme, density, sort, locale — live in
+**View settings** (visible columns, order, theme, density, sort, locale) live in
 the browser's `localStorage` under `lcwd:prefs`, so they are per browser profile
 and do not transfer. Set them once through the **Layout** button; it takes a
 minute. Save a named preset if you want the same layout twice.

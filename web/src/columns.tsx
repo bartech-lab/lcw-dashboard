@@ -6,7 +6,7 @@ import * as fmt from "./format";
 // gives a single visible-map, a single order array and a single reorder UI.
 
 // No liquidity column. Verified against the live API: neither /coins/list nor
-// /coins/map returns the field at all, and only /coins/single does — one credit
+// /coins/map returns the field at all, and only /coins/single does, at one credit
 // per coin per refresh. It is shown in the coin detail view instead, where that
 // endpoint is already being called.
 export type ColumnId =

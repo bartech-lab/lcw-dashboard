@@ -15,7 +15,7 @@ function nf(locale: string, opts: Intl.NumberFormatOptions): Intl.NumberFormat {
   return f;
 }
 
-export const DASH = "–";
+export const DASH = "-";
 
 /** Money with a price-appropriate number of decimals. */
 export function money(v: Num, locale: string, currency: string): string {
@@ -92,7 +92,7 @@ export function percent(v: Num, locale: string): string {
   }).format(v) + "%";
 }
 
-/** ▲ ▼ or – . The glyph is the encoding, so it goes in the DOM. */
+/** Up, down, or none. The glyph is the encoding, so it goes in the DOM. */
 export function glyph(v: Num): string {
   if (v === null || !Number.isFinite(v) || v === 0) return DASH;
   return v > 0 ? "▴" : "▾";
@@ -159,6 +159,18 @@ export function fullDateTime(ms: number, locale: string): string {
     day: "2-digit", month: "short", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   }).format(new Date(ms));
+}
+
+/** Time until an instant, for the refresh countdown. Past due reads as "now". */
+export function countdown(toIso: string | null, nowMs: number): string {
+  if (!toIso) return DASH;
+  const at = new Date(toIso).getTime();
+  if (Number.isNaN(at)) return DASH;
+  const s = Math.round((at - nowMs) / 1000);
+  if (s <= 0) return "now";
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  return `${m}m ${String(s - m * 60).padStart(2, "0")}s`;
 }
 
 /** Exact age, never "a few minutes ago". */

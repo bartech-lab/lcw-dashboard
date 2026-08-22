@@ -1,6 +1,6 @@
 import { computed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
-import type { CoinRow, SearchResult } from "./types";
+import type { CoinRow, SearchResult, Status } from "./types";
 import * as fmt from "./format";
 import * as prefs from "./prefs";
 import * as S from "./stream";
@@ -178,39 +178,87 @@ function ConnectionPill() {
   const st = S.status.value;
   const stale = S.isStale.value;
   const loc = prefs.locale.value;
+  const now = S.now.value;
 
   if (c === "offline" || c === "reconnecting") {
-    const secs = S.retryAt.value ? Math.max(0, Math.round((S.retryAt.value - S.now.value) / 1000)) : 0;
+    const secs = S.retryAt.value ? Math.max(0, Math.round((S.retryAt.value - now) / 1000)) : 0;
     return (
       <span class="pill">
         <span class={`dot ${c === "offline" ? "dot-error" : "dot-warn"}`} />
         <span aria-live="polite">
           {c === "offline" ? "Disconnected" : "Reconnecting"}
-          {secs > 0 ? ` · retry in ${secs}s` : ""}
-          {S.coins.value ? ` · data ${fmt.age(S.coins.value.asOf, S.now.value)} old` : ""}
+          {secs > 0 ? `, retry in ${secs}s` : ""}
+          {S.coins.value ? `, data ${fmt.age(S.coins.value.asOf, now)} old` : ""}
         </span>
         <button type="button" onClick={S.retryNow}>Retry now</button>
       </span>
     );
   }
 
-  if (st && (st.pollState === "conserve" || st.pollState === "critical" || st.pollState === "exhausted")) {
-    const cr = S.credits.value;
-    return (
-      <span class="pill" title={cr ? `${cr.apiRemaining} of ${cr.apiLimit} credits left today` : ""}>
-        <span class="dot dot-info" />
-        <span>Throttled · every {Math.round((st.intervalMs || 0) / 1000)}s</span>
-      </span>
-    );
+  const asOf = S.coins.value?.asOf ?? null;
+  const throttled = st != null &&
+    (st.pollState === "conserve" || st.pollState === "critical" || st.pollState === "exhausted");
+  const cr = S.credits.value;
+
+  let dot = "dot-live";
+  let label = "Live";
+  if (throttled) {
+    dot = "dot-info";
+    label = "Throttled";
+  } else if (stale) {
+    dot = "dot-warn";
+    label = "Stale";
   }
 
   return (
-    <span class="pill">
-      <span class={`dot ${stale ? "dot-warn" : "dot-live"}`} />
-      <span aria-live="polite">
-        {stale
-          ? `Updated ${fmt.clockTime(S.coins.value?.asOf ?? null, loc)} · ${fmt.age(S.coins.value?.asOf ?? null, S.now.value)} ago`
-          : `Live · ${fmt.clockTime(S.coins.value?.asOf ?? null, loc)}`}
+    <span
+      class="pill"
+      title={cr ? `${cr.remainingEstimate} of ${cr.apiLimit} credits left today` : ""}
+    >
+      <span class={`dot ${dot}`} />
+      <span aria-live="polite">{label}</span>
+      <RefreshTimer asOf={asOf} status={st} now={now} locale={loc} />
+    </span>
+  );
+}
+
+/**
+ * The refresh timer. Age answers "is this current" and the countdown answers
+ * "when will it change", so both are shown; a timestamp alone leaves you doing
+ * the subtraction.
+ */
+function RefreshTimer({
+  asOf, status, now, locale,
+}: {
+  asOf: string | null;
+  status: Status | null;
+  now: number;
+  locale: string;
+}) {
+  const interval = status?.intervalMs ?? 0;
+  const next = status?.nextTickAt ?? null;
+  const ageMs = asOf ? Math.max(0, now - new Date(asOf).getTime()) : null;
+
+  // A fetch in flight leaves nextTickAt in the past, which reads better as an
+  // explicit "updating" than as a stuck "now".
+  const dueIn = next ? new Date(next).getTime() - now : null;
+  const updating = dueIn !== null && dueIn <= 0;
+
+  const pct = interval > 0 && ageMs !== null
+    ? Math.min(100, Math.round((ageMs / interval) * 100))
+    : 0;
+
+  return (
+    <span class="timer">
+      <span class="timer-bar" aria-hidden="true">
+        <i style={{ width: `${pct}%` }} />
+      </span>
+      <span class="timer-text">
+        {fmt.clockTime(asOf, locale)}
+        {ageMs !== null && `, ${fmt.age(asOf, now)} ago`}
+      </span>
+      <span class="timer-next">
+        {updating ? "updating" : `next ${fmt.countdown(next, now)}`}
       </span>
     </span>
   );

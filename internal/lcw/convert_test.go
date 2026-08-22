@@ -56,7 +56,7 @@ func TestDeltaPctIsNotClamped(t *testing.T) {
 		}
 		want := (in - 1) * 100
 		if math.Abs(*got-want) > 1e-6 {
-			t.Fatalf("DeltaPct(%v) = %v, want %v — value was clamped or truncated", in, *got, want)
+			t.Fatalf("DeltaPct(%v) = %v, want %v, value was clamped or truncated", in, *got, want)
 		}
 	}
 }

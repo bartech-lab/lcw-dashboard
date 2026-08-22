@@ -87,7 +87,7 @@ func TestErrorUnderHTTP200(t *testing.T) {
 		t.Errorf("Code = %d, want 401", apiErr.Code)
 	}
 	if apiErr.HTTPStatus != 200 {
-		t.Errorf("HTTPStatus = %d, want 200 — the disagreement is the point", apiErr.HTTPStatus)
+		t.Errorf("HTTPStatus = %d, want 200; the disagreement is the point", apiErr.HTTPStatus)
 	}
 	if !IsAuth(err) {
 		t.Error("IsAuth should classify a 401 error object")
@@ -288,7 +288,7 @@ func TestCoinsSingleFillsInCode(t *testing.T) {
 		t.Fatalf("CoinsSingle: %v", err)
 	}
 	if coin.Code != "ETH" {
-		t.Errorf("Code = %q, want ETH — the client should backfill it", coin.Code)
+		t.Errorf("Code = %q, want ETH, the client should backfill it", coin.Code)
 	}
 }
 

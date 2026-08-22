@@ -49,7 +49,7 @@ poll:
 coins:
   default_view: top        # top|favourites
   limit: 100               # the API maximum
-  sort: rank               # rank|price|volume|code|name|age — no delta windows
+  sort: rank               # rank|price|volume|code|name|age (no delta windows)
   order: ascending
   meta: true
   watchlist_max: 300

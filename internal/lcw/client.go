@@ -135,7 +135,7 @@ func (c *Client) post(ctx context.Context, endpoint string, needsKey bool, body,
 		return probe.Error
 	}
 
-	// No error object, but a failing status still means failure — synthesise an
+	// No error object, but a failing status still means failure, so synthesise an
 	// APIError so callers have one error type to classify.
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return &APIError{

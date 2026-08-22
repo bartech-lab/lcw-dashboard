@@ -7,6 +7,7 @@ frontend embedded, meant to sit open in a background browser tab all day.
   liquidity, and six percentage-change windows
 - Watchlist that works for coins outside the top 100
 - Market overview strip and a per-coin detail view with a real chart
+- Refresh timer showing data age and time to the next update
 - Light, dark and auto themes; configurable locale; 24-hour clock throughout
 - Desktop alert notifications that fire even when no browser is open
 - Local price history recorded at zero API cost
@@ -78,7 +79,7 @@ level=ERROR msg="projected daily credits exceed the API limit" total=10196 apiLi
 ```
 
 **Two properties hold regardless of how you use it.** Opening more tabs does not
-spend more credits — several views share the poll loop by rotation, so each
+spend more credits: several views share the poll loop by rotation, so each
 refreshes more slowly instead. And a watchlist longer than 100 codes does not
 spend more either: it splits into more requests and the interval is multiplied to
 match. Both are covered by tests.
@@ -88,8 +89,8 @@ match. Both are covered by tests.
 Server settings live in `~/.config/lcw-dashboard/config.yaml`. Every key is
 documented with its default in `config.example.yaml`.
 
-View settings — visible columns, column order, theme, density, sort, page size,
-locale — live in the browser's `localStorage`, so changing a column needs no
+View settings (visible columns, column order, theme, density, sort, page size,
+locale) live in the browser's `localStorage`, so changing a column needs no
 restart. Use the **Layout** button above the table.
 
 The API key is never in `config.yaml`; `-check-config` rejects a config that
@@ -120,7 +121,7 @@ recording it costs nothing. Each coin gets a fixed-size ring buffer:
 | 2 | 15 minutes | 30 days |
 | 3 | 1 hour | 365 days |
 
-That is **204 KB per coin, about 49 MB for 250 coins, and constant** — a ring
+That is **204 KB per coin, about 49 MB for 250 coins, and constant**. A ring
 buffer overwrites rather than appends, so the files reach their size and stay
 there. The detail chart prefers this local data and only calls the API for spans
 it does not cover. Turn it off with `history.enabled: false`.
@@ -162,7 +163,7 @@ coins, built by walking `/coins/list` once a day for 20 credits and cached to
 disk.
 
 **It does not return liquidity for a list of coins.** Verified live: neither
-`/coins/list` nor `/coins/map` includes the field at all — it is absent, not
+`/coins/list` nor `/coins/map` includes the field at all. It is absent, not
 null. Only `/coins/single` has it, which would cost one credit per coin per
 refresh. So there is no Liquidity ±2% column; it appears in the coin detail view,
 where that endpoint is already being called.
@@ -237,7 +238,7 @@ LCW_API_KEY=... go run -tags smoke ./scripts/smoke
 
 Costs about 15 credits. It calls every endpoint once, prints per-endpoint latency
 and cost, probes every sort field, and measures the actual delta range across the
-top 100 — which is how the documentation error below was found.
+top 100, which is how the documentation error below was found.
 
 `go test ./...` needs no network and no key.
 
@@ -261,7 +262,7 @@ Worth knowing if you read the code:
   price at all. bittensor is `____TAO`; Solayer is `__LAYER`. Their own site
   displays the trimmed form, and so does this dashboard, but the real code is
   what goes to the API. **Add coins with the search box rather than typing a
-  ticker** — it resolves the actual code for you.
+  ticker**, which resolves the actual code for you.
 - Codes the API does not recognise are omitted from the response rather than
   reported, so the dashboard diffs requested against returned and tells you.
 
@@ -280,7 +281,7 @@ rather than retrying a bad key. Fix `.env` and restart.
 
 **Status reads `throttled`.** The daily budget is running low, so the interval
 widened. `curl -s localhost:8787/api/state | jq .credits` shows the numbers. If
-this happens daily, your intervals are too fast — see the budget table above.
+this happens daily, your intervals are too fast; see the budget table above.
 
 **Credit drift warnings in the log.** Something else is using the same API key,
 which halves your effective allowance.

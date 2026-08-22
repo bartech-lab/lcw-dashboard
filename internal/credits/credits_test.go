@@ -285,7 +285,7 @@ func TestReconcileAdoptsTheLowerRemaining(t *testing.T) {
 	})
 	h.spend(t, 100)
 
-	// The API says 8,000 remain of 10,000, so 2,000 were spent — far more than
+	// The API says 8,000 remain of 10,000, so 2,000 were spent, far more than
 	// our 100. Something else is using the key.
 	h.led.Reconcile(8000, 10000)
 
