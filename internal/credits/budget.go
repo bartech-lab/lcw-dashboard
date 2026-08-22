@@ -291,6 +291,14 @@ func (g *Guard) Refund(n int) {
 	g.limiter.Return(n)
 }
 
+// RecordFailure and RecordSuccess drive the circuit breaker. The breaker is
+// probed with /status, which costs nothing, so backing off is free.
+func (g *Guard) RecordFailure()    { g.limiter.Failure() }
+func (g *Guard) RecordSuccess()    { g.limiter.Success() }
+func (g *Guard) BreakerOpen() bool { return g.limiter.Open() }
+
+func (g *Guard) BreakerOpenUntil() time.Time { return g.limiter.OpenUntil() }
+
 // PollInterval resolves the effective interval for the current budget state.
 // The scheduler owns visibility; this owns budget. A zero result means do not
 // poll at all.
