@@ -83,12 +83,10 @@ type Overview struct {
 	HistoryEnabled bool     `yaml:"history_enabled"`
 }
 
+// Currency is a single value: there is no picker. Most of the 166 fiats the API
+// lists return no rate, so offering them was worse than offering one.
 type Currency struct {
 	Default string `yaml:"default"`
-	// Empty allowlist means offer everything /fiats/all returns.
-	Allowlist []string `yaml:"allowlist"`
-	Denylist  []string `yaml:"denylist"`
-	FiatsTTL  Duration `yaml:"fiats_ttl"`
 }
 
 type Credits struct {

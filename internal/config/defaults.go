@@ -58,12 +58,7 @@ func Default() Config {
 			HiddenInterval: d(900 * time.Second),
 			HistoryEnabled: false,
 		},
-		Currency: Currency{
-			Default:   "USD",
-			Allowlist: nil,
-			Denylist:  nil,
-			FiatsTTL:  d(720 * time.Hour),
-		},
+		Currency: Currency{Default: "USD"},
 		Credits: Credits{
 			DailyCeiling:       9000,
 			APIDailyLimit:      10000,

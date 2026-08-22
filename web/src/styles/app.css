@@ -138,6 +138,7 @@
 .chip-icon { display: inline-flex; align-items: center; gap: 6px; }
 .chip-icon[aria-pressed="true"] { color: var(--delta-down); }
 .spacer { margin-left: auto; }
+.scope-note { color: var(--text-muted); font-size: var(--fs-xs); }
 
 /* table */
 .surface { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }

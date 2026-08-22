@@ -57,9 +57,7 @@ type Controller struct {
 	revision         uint64
 	startedAt        time.Time
 
-	envPath   string
-	fiatsPath string
-	fiats     *snapshot.Fiats
+	envPath string
 
 	coinTimer     clock.Timer
 	overviewTimer clock.Timer

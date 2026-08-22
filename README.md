@@ -152,11 +152,14 @@ oscillations of 99,999 to 100,001 produce exactly one alert.
 ## Three things the API cannot do
 
 **It cannot sort by a percentage change.** The `sort` parameter accepts only
-`rank`, `price`, `volume`, `code`, `name` and `age`. So the **This page /
-Market** control beside the sort header is disabled on the six change columns:
-sorting them reorders the coins already loaded, which cannot surface the coin
-ranked #340 that gained 90% this week. The control exists to make that
-distinction visible rather than misleading.
+`rank`, `price`, `volume`, `code`, `name` and `age`.
+
+That is why the **This page / Whole market** control appears only when you sort
+by price, volume, age, code or name. Sorting locally reorders the 100 coins
+already loaded, which cannot surface the coin ranked #340 that leads on volume;
+asking the server for a market-wide top 100 by that column can, for one credit.
+Sorted by rank the two are the same 100 coins, and on a change column the API
+cannot do it at all, so in both cases the control is hidden rather than inert.
 
 **It has no search endpoint.** Search runs against a local index of the top 2,000
 coins, built by walking `/coins/list` once a day for 20 credits and cached to

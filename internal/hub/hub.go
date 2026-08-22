@@ -18,7 +18,6 @@ const (
 	EventCredits   EventType = "credits"
 	EventAlert     EventType = "alert"
 	EventWatchlist EventType = "watchlist"
-	EventFiats     EventType = "fiats"
 	EventBye       EventType = "bye"
 )
 
@@ -26,7 +25,7 @@ const (
 // price table, not every one it missed. Alerts are never coalesced.
 func (t EventType) coalescable() bool {
 	switch t {
-	case EventCoins, EventOverview, EventStatus, EventCredits, EventWatchlist, EventFiats:
+	case EventCoins, EventOverview, EventStatus, EventCredits, EventWatchlist:
 		return true
 	}
 	return false
@@ -98,7 +97,7 @@ func (h *Hub) Register(id, viewKey string) (<-chan Event, []Event) {
 
 // backlogLocked collects current state plus recent alerts.
 func (h *Hub) backlogLocked(viewKey string) []Event {
-	order := []EventType{EventStatus, EventCredits, EventWatchlist, EventFiats, EventOverview, EventCoins}
+	order := []EventType{EventStatus, EventCredits, EventWatchlist, EventOverview, EventCoins}
 	out := make([]Event, 0, len(order)+len(h.alerts))
 	for _, t := range order {
 		byKey, ok := h.latest[t]

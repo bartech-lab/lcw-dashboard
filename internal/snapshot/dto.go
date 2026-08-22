@@ -199,18 +199,6 @@ type Watchlist struct {
 	Max       int       `json:"max"`
 }
 
-type Fiat struct {
-	Code   string `json:"code"`
-	Name   string `json:"name"`
-	Symbol string `json:"symbol"`
-	Flag   string `json:"flag"`
-}
-
-type Fiats struct {
-	Fiats    []Fiat    `json:"fiats"`
-	CachedAt time.Time `json:"cachedAt"`
-}
-
 // HelloConfig is the server configuration the browser needs, sent once on
 // connect so the client never guesses an interval.
 type HelloConfig struct {

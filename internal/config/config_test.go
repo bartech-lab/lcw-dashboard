@@ -181,8 +181,6 @@ func TestValidationCatchesEachProblem(t *testing.T) {
 		{"conserve above critical", func(c *Config) { c.Credits.ConserveAt = 0.99 }, "conserve_at"},
 		{"zero min gap", func(c *Config) { c.Credits.MinRequestGap = 0 }, "min_request_gap"},
 		{"reserve eats the ceiling", func(c *Config) { c.Credits.ReserveForOnDemand = 9000 }, "reserve_for_ondemand"},
-		{"default currency not offered", func(c *Config) { c.Currency.Allowlist = []string{"EUR", "PLN"} }, "allowlist"},
-		{"default currency denied", func(c *Config) { c.Currency.Denylist = []string{"USD"} }, "denylist"},
 		{"bad refresh time", func(c *Config) { c.SearchIndex.RefreshAt = "25:00" }, "refresh_at"},
 		{"bad watchlist source", func(c *Config) { c.Watchlist.Source = "magic" }, "watchlist.source"},
 		{"unknown sink", func(c *Config) { c.Alerts.Sinks = []string{"telegram"} }, "alerts.sinks"},

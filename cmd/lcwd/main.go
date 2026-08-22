@@ -161,7 +161,6 @@ func run() error {
 		Engine: engine, Index: index, Notify: fan,
 	})
 	ctrl.SetEnvPath(paths.EnvFile())
-	ctrl.SetFiatsPath(paths.Fiats())
 	restoreLastGood(log, cfg, paths, ctrl)
 
 	api := httpapi.New(httpapi.Deps{
@@ -302,9 +301,6 @@ func restoreLastGood(log *slog.Logger, cfg config.Config, paths store.Paths, ctr
 		return
 	}
 	ctrl.Warm(lg.Coins, lg.Overview)
-	if lg.Fiats != nil && len(lg.Fiats.Fiats) > 0 {
-		log.Debug("restored fiat list", "count", len(lg.Fiats.Fiats))
-	}
 }
 
 func persistOnExit(log *slog.Logger, cfg config.Config, paths store.Paths,

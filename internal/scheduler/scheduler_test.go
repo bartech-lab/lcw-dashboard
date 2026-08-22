@@ -735,37 +735,6 @@ func TestBootstrapWithNoKeyMakesNoKeyedCalls(t *testing.T) {
 	}
 }
 
-func TestFiatAllowlistTrimsThePicker(t *testing.T) {
-	h := newHarness(t, func(c *config.Config) {
-		c.Currency.Allowlist = []string{"USD"}
-	})
-	h.ctrl.SetFiats([]lcw.Fiat{
-		{Code: "USD", Name: "US Dollar"},
-		{Code: "EUR", Name: "Euro"},
-	})
-
-	f := h.world.Load().Fiats
-	if len(f.Fiats) != 1 || f.Fiats[0].Code != "USD" {
-		t.Errorf("Fiats = %+v, want only USD", f.Fiats)
-	}
-}
-
-func TestFiatDenylistRemovesACurrency(t *testing.T) {
-	h := newHarness(t, func(c *config.Config) {
-		c.Currency.Denylist = []string{"EUR"}
-	})
-	h.ctrl.SetFiats([]lcw.Fiat{
-		{Code: "USD", Name: "US Dollar"},
-		{Code: "EUR", Name: "Euro"},
-	})
-
-	for _, f := range h.world.Load().Fiats.Fiats {
-		if f.Code == "EUR" {
-			t.Error("EUR should have been removed")
-		}
-	}
-}
-
 // A backgrounded favourites tab must keep the server on favourites. Falling back
 // to the config default polled a view nobody was looking at, and left the tab
 // with nothing when it came back.

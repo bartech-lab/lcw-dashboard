@@ -140,7 +140,6 @@ function Header() {
     <header class="header">
       <div class="logo">Live<span>·</span>Coin<span>·</span>Watch</div>
       <SearchBox />
-      <CurrencyPicker />
       <ThemeToggle />
       <ConnectionPill />
     </header>
@@ -165,38 +164,6 @@ function ThemeToggle() {
         </button>
       ))}
     </div>
-  );
-}
-
-function CurrencyPicker() {
-  const list = S.fiats.value?.fiats ?? [];
-  const pending = S.pendingRevision.value > (S.status.value?.revision ?? 0);
-  if (list.length === 0) {
-    return <span class="pill" aria-label="Currency">{prefs.currency.value}</span>;
-  }
-  return (
-    <label>
-      <span class="sr-only">Display currency</span>
-      <select
-        class="select"
-        value={prefs.currency.value}
-        aria-busy={pending}
-        onChange={(e) => {
-          const next = (e.target as HTMLSelectElement).value;
-          prefs.currency.value = next;
-          // The server converts, so values stay marked in flight until it
-          // acknowledges. Without this the label would flip while the numbers
-          // stayed in the old currency.
-          void S.control({ currency: next });
-        }}
-      >
-        {list.map((f) => (
-          <option key={f.code} value={f.code}>
-            {f.code}{f.symbol ? ` (${f.symbol})` : ""}
-          </option>
-        ))}
-      </select>
-    </label>
   );
 }
 
@@ -418,35 +385,43 @@ function setView(v: "top" | "favourites"): void {
 }
 
 /**
- * Client-side sorting reorders only the rows already loaded, so it can never
- * surface the coin ranked #340 that gained 90% this week. Making the distinction
- * visible is the whole point of this control.
+ * Sorting locally reorders only the 100 rows already loaded, so it can never
+ * surface the coin ranked #340 that leads on volume. Asking the server does.
+ *
+ * The control is hidden unless it can change something. Sorted by rank, a
+ * market-wide page and the local page are the same 100 coins, so offering the
+ * choice there just looks broken.
  */
 function SortScopeChip() {
   const def = columnDef(prefs.sortCol.value);
-  const canMarket = Boolean(def.apiSort);
-  const scope = prefs.sortScope.value;
+  const api = def.apiSort;
+  if (!api || api === "rank") return null;
 
+  const scope = prefs.sortScope.value;
   return (
-    <span class="seg" role="radiogroup" aria-label="Sort scope">
-      <button
-        type="button" role="radio" aria-checked={scope === "page"}
-        onClick={() => { prefs.sortScope.value = "page"; S.pushSort(); }}
-        title="Sort the coins already loaded. Instant, no API credits."
-      >
-        This page
-      </button>
-      <button
-        type="button" role="radio" aria-checked={scope === "market"}
-        disabled={!canMarket}
-        title={canMarket
-          ? "Ask the server for a market-wide top list by this column (1 credit)."
-          : "Live Coin Watch cannot sort by a percentage change, so market-wide sorting is unavailable for this column."}
-        onClick={() => { if (canMarket) { prefs.sortScope.value = "market"; S.pushSort(); } }}
-      >
-        Market
-      </button>
-    </span>
+    <>
+      <span class="seg" role="radiogroup" aria-label={`Sort scope for ${def.label}`}>
+        <button
+          type="button" role="radio" aria-checked={scope === "page"}
+          onClick={() => { prefs.sortScope.value = "page"; S.pushSort(); }}
+          title={`Reorder the ${S.rows.value.length} coins already loaded. Instant, no API credits.`}
+        >
+          This page
+        </button>
+        <button
+          type="button" role="radio" aria-checked={scope === "market"}
+          onClick={() => { prefs.sortScope.value = "market"; S.pushSort(); }}
+          title={`Fetch the market-wide top 100 by ${def.label} (1 credit).`}
+        >
+          Whole market
+        </button>
+      </span>
+      {scope === "market" && (
+        <span class="scope-note">
+          top 100 by {def.label}, market-wide
+        </span>
+      )}
+    </>
   );
 }
 

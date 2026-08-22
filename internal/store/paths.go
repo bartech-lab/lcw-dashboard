@@ -60,7 +60,6 @@ func (p Paths) LastGood() string    { return filepath.Join(p.StateDir, "lastgood
 func (p Paths) Lock() string        { return filepath.Join(p.StateDir, "lock") }
 func (p Paths) HistoryDir() string  { return filepath.Join(p.StateDir, "history") }
 func (p Paths) SearchIndex() string { return filepath.Join(p.CacheDir, "search-index.json") }
-func (p Paths) Fiats() string       { return filepath.Join(p.CacheDir, "fiats.json") }
 
 // HistoryFile maps a coin code to a ring path.
 //

@@ -83,8 +83,6 @@ export interface Watchlist {
   codes: string[]; hash: string; updatedAt: string; max: number;
 }
 
-export interface Fiat { code: string; name: string; symbol: string; flag: string }
-export interface Fiats { fiats: Fiat[]; cachedAt: string }
 
 export interface HelloConfig {
   activeIntervalMs: number;

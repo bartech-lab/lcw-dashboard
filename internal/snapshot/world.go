@@ -15,7 +15,6 @@ type World struct {
 	Status   *Status
 	Credits  *Credits
 	Watch    *Watchlist
-	Fiats    *Fiats
 }
 
 // Holder publishes World values. It is safe for concurrent readers.
@@ -31,7 +30,6 @@ func NewHolder() *Holder {
 		Status:   &Status{PollState: PollInitializing},
 		Credits:  &Credits{},
 		Watch:    &Watchlist{Codes: []string{}},
-		Fiats:    &Fiats{Fiats: []Fiat{}},
 	})
 	return h
 }
@@ -46,7 +44,6 @@ func (w *World) clone() *World {
 		Status:   w.Status,
 		Credits:  w.Credits,
 		Watch:    w.Watch,
-		Fiats:    w.Fiats,
 	}
 	for k, v := range w.Coins {
 		n.Coins[k] = v
@@ -91,8 +88,4 @@ func (h *Holder) SetCredits(c *Credits) *World {
 
 func (h *Holder) SetWatchlist(wl *Watchlist) *World {
 	return h.Update(func(w *World) { w.Watch = wl })
-}
-
-func (h *Holder) SetFiats(f *Fiats) *World {
-	return h.Update(func(w *World) { w.Fiats = f })
 }

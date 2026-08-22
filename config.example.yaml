@@ -64,11 +64,10 @@ overview:
   history_enabled: false
 
 currency:
+  # One currency, no picker. Most of the 166 fiats the API lists return no rate
+  # at all, so offering them was worse than offering one. Change it here if you
+  # want the whole dashboard in another currency.
   default: USD
-  # Empty offers every fiat the API returns. List codes to trim the picker.
-  allowlist: []
-  denylist: []
-  fiats_ttl: 720h
 
 credits:
   daily_ceiling: 9000

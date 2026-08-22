@@ -115,10 +115,6 @@ func newEnv(t *testing.T, tweak func(*config.Config)) *env {
 		View: snapshot.ViewTop, Currency: "USD", AsOf: clk.Now(),
 		Coins: []snapshot.CoinRow{{Code: "BTC", Name: "Bitcoin", Rank: 1}},
 	})
-	world.SetFiats(&snapshot.Fiats{Fiats: []snapshot.Fiat{
-		{Code: "USD", Name: "US Dollar", Symbol: "$"},
-		{Code: "EUR", Name: "Euro", Symbol: "€"},
-	}})
 
 	return &env{srv: srv, world: world, watch: wl, clk: clk, cfg: cfg, cancel: cancel}
 }
@@ -160,7 +156,7 @@ func TestAPIKeyNeverAppearsInAnyResponse(t *testing.T) {
 
 	paths := []string{
 		"/api/health", "/api/config", "/api/state", "/api/watchlist",
-		"/api/alerts", "/api/fiats", "/api/search?q=btc",
+		"/api/alerts", "/api/search?q=btc",
 	}
 	for _, p := range paths {
 		_, body := e.get(t, p)
@@ -323,12 +319,13 @@ func TestControlRejectsUnknownViewAndCurrency(t *testing.T) {
 		t.Errorf("unknown view: status = %d, want 400", res.StatusCode)
 	}
 
-	// Rejected locally rather than spending a credit on a doomed request.
+	// There is one configured currency, so anything else is refused rather than
+	// spending a credit on a request that cannot help.
 	res, body := e.send(t, "POST", "/api/control", map[string]any{
-		"clientId": "c1", "view": "top", "currency": "XYZ",
+		"clientId": "c1", "view": "top", "currency": "EUR",
 	})
 	if res.StatusCode != http.StatusBadRequest {
-		t.Errorf("unknown currency: status = %d, want 400: %s", res.StatusCode, body)
+		t.Errorf("unconfigured currency: status = %d, want 400: %s", res.StatusCode, body)
 	}
 }
 
@@ -443,7 +440,7 @@ func TestStateServesEverySection(t *testing.T) {
 	if err := json.Unmarshal([]byte(body), &out); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"coins", "overview", "status", "credits", "watchlist", "fiats"} {
+	for _, key := range []string{"coins", "overview", "status", "credits", "watchlist"} {
 		if _, ok := out[key]; !ok {
 			t.Errorf("state is missing %q", key)
 		}
@@ -548,5 +545,22 @@ func TestControlForAnUnknownClientUsesTheConfiguredDefault(t *testing.T) {
 	})
 	if !strings.Contains(body, `"viewKey":"top|`) {
 		t.Errorf("want the configured default view, got: %s", body)
+	}
+}
+
+// Returning the SPA shell to a fetch that expected JSON is a confusing way to
+// report a typo in an endpoint.
+func TestUnknownAPIPathReturns404JSON(t *testing.T) {
+	e := newEnv(t, nil)
+	res, body := e.get(t, "/api/does-not-exist")
+
+	if res.StatusCode != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", res.StatusCode)
+	}
+	if ct := res.Header.Get("content-type"); !strings.Contains(ct, "json") {
+		t.Errorf("content-type = %q, want JSON", ct)
+	}
+	if !strings.Contains(body, "no such endpoint") {
+		t.Errorf("body = %s", body)
 	}
 }

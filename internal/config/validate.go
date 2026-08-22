@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/bartech/lcw-dashboard/internal/alerts"
@@ -124,25 +123,6 @@ func (c Config) Validate() error {
 	// currency
 	if c.Currency.Default == "" {
 		add("currency.default is empty")
-	}
-	if len(c.Currency.Allowlist) > 0 {
-		found := false
-		for _, code := range c.Currency.Allowlist {
-			if strings.EqualFold(code, c.Currency.Default) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			add("currency.default %q is missing from currency.allowlist %v, so the "+
-				"dashboard would start on a currency it will not offer",
-				c.Currency.Default, c.Currency.Allowlist)
-		}
-	}
-	for _, code := range c.Currency.Denylist {
-		if strings.EqualFold(code, c.Currency.Default) {
-			add("currency.default %q is also in currency.denylist", c.Currency.Default)
-		}
 	}
 
 	// credits

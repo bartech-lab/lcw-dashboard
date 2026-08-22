@@ -30,14 +30,14 @@ func TestConcurrentUpdatesDoNotLoseWrites(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < n; i++ {
-			h.SetFiats(&Fiats{Fiats: []Fiat{{Code: "USD"}, {Code: "EUR"}}})
+			h.SetWatchlist(&Watchlist{Codes: []string{"BTC", "ETH"}})
 		}
 	}()
 	wg.Wait()
 
 	w := h.Load()
-	if w.Fiats == nil || len(w.Fiats.Fiats) != 2 {
-		t.Errorf("fiats lost: %+v", w.Fiats)
+	if w.Watch == nil || len(w.Watch.Codes) != 2 {
+		t.Errorf("watchlist lost: %+v", w.Watch)
 	}
 	if w.Status == nil || w.Status.PollState != PollActive {
 		t.Errorf("status lost: %+v", w.Status)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/bartech/lcw-dashboard/internal/credits"
@@ -58,6 +59,13 @@ func (s *Server) handleControl(w http.ResponseWriter, r *http.Request) {
 	if req.Currency != nil && *req.Currency != "" {
 		currency = *req.Currency
 	}
+	// One currency, set in config. There is no picker, because most of the 166
+	// fiats the API lists return no rate at all.
+	if !strings.EqualFold(currency, s.cfg.Currency.Default) {
+		writeError(w, http.StatusBadRequest, "only one currency is configured",
+			s.cfg.Currency.Default)
+		return
+	}
 	if req.Sort != nil {
 		next := lcw.SortField(*req.Sort)
 		if !next.Valid() {
@@ -80,11 +88,6 @@ func (s *Server) handleControl(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "unknown view", string(view))
 		return
 	}
-	if !s.currencyAllowed(currency) {
-		// Rejected locally rather than spending a credit on a doomed request.
-		writeError(w, http.StatusBadRequest, "currency not offered", currency)
-		return
-	}
 	visible := true
 	if req.Visible != nil {
 		visible = *req.Visible
@@ -93,21 +96,6 @@ func (s *Server) handleControl(w http.ResponseWriter, r *http.Request) {
 	s.hub.SetViewKey(req.ClientID, s.viewKey(view, currency, sortField, order))
 	reply := s.ctrl.Presence(req.ClientID, view, currency, sortField, order, visible)
 	writeJSON(w, http.StatusOK, reply)
-}
-
-func (s *Server) currencyAllowed(code string) bool {
-	code = lcw.NormalizeCode(code)
-	f := s.world.Load().Fiats
-	if f == nil || len(f.Fiats) == 0 {
-		// The list has not loaded yet; accept and let the API decide.
-		return true
-	}
-	for _, fiat := range f.Fiats {
-		if lcw.NormalizeCode(fiat.Code) == code {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
@@ -134,7 +122,6 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 		"status":    world.Status,
 		"credits":   world.Credits,
 		"watchlist": world.Watch,
-		"fiats":     world.Fiats,
 	})
 }
 
@@ -191,10 +178,6 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		"indexReady": true, "indexCoins": st.Coins,
 		"builtAt": st.BuiltAt, "results": out,
 	})
-}
-
-func (s *Server) handleFiats(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, s.world.Load().Fiats)
 }
 
 func (s *Server) handleWatchlistGet(w http.ResponseWriter, r *http.Request) {

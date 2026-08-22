@@ -78,7 +78,6 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/config", s.handleConfig)
 	mux.HandleFunc("GET /api/search", s.handleSearch)
-	mux.HandleFunc("GET /api/fiats", s.handleFiats)
 	mux.HandleFunc("GET /api/coins/{code}", s.handleCoinDetail)
 	mux.HandleFunc("GET /api/watchlist", s.handleWatchlistGet)
 	mux.HandleFunc("GET /api/alerts", s.handleAlertsGet)
@@ -94,6 +93,17 @@ func (s *Server) Handler() http.Handler {
 	if s.cfg.Debug.Enabled && s.cfg.Debug.PProf {
 		mux.HandleFunc("GET /debug/pprof/", pprof.Index)
 		mux.HandleFunc("GET /debug/pprof/profile", pprof.Profile)
+	}
+
+	// An unknown /api path must not fall through to the SPA shell: returning
+	// HTML to a fetch that expected JSON is a confusing way to report a typo.
+	// Registered per method, because a method-agnostic "/api/" conflicts with
+	// the GET-only static handler below.
+	notFound := func(w http.ResponseWriter, r *http.Request) {
+		writeError(w, http.StatusNotFound, "no such endpoint", r.URL.Path)
+	}
+	for _, m := range []string{"GET", "POST", "PUT", "DELETE", "PATCH"} {
+		mux.HandleFunc(m+" /api/", notFound)
 	}
 
 	mux.Handle("GET /", s.staticHandler())

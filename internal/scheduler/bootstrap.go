@@ -4,10 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/bartech/lcw-dashboard/internal/store"
-
 	"github.com/bartech/lcw-dashboard/internal/credits"
-	"github.com/bartech/lcw-dashboard/internal/hub"
 	"github.com/bartech/lcw-dashboard/internal/lcw"
 	"github.com/bartech/lcw-dashboard/internal/snapshot"
 )
@@ -42,83 +39,9 @@ func (c *Controller) Bootstrap(ctx context.Context) {
 	}
 	c.publishCredits()
 
-	c.loadFiats(ctx)
 	c.send(command{kind: cmdReconciled})
 	c.send(command{kind: cmdPrime})
 }
-
-func (c *Controller) loadFiats(ctx context.Context) {
-	// Disk first: the list changes rarely, so a restart should not cost a credit.
-	if c.fiats == nil && c.fiatsPath != "" {
-		var cached snapshot.Fiats
-		if found, err := store.ReadJSON(c.fiatsPath, &cached); err != nil {
-			c.log.Debug("fiat cache unreadable", "err", err)
-		} else if found && len(cached.Fiats) > 0 {
-			c.fiats = &cached
-		}
-	}
-	if c.fiats != nil && c.clk.Since(c.fiats.CachedAt) < c.cfg.Currency.FiatsTTL.D() {
-		if err := c.hub.Broadcast(hub.EventFiats, "", c.fiats); err != nil {
-			c.log.Warn("fiats broadcast failed", "err", err)
-		}
-		c.world.SetFiats(c.fiats)
-		c.log.Info("currencies available", "count", len(c.fiats.Fiats), "source", "cache")
-		return
-	}
-	if reason, ok := c.guard.Reserve(credits.KindFiats, 1, credits.SourceProbe); !ok {
-		c.log.Debug("fiat list fetch refused", "reason", reason)
-		return
-	}
-	list, err := c.client.FiatsAll(ctx)
-	c.settle(err, 1, credits.KindFiats)
-	if err != nil {
-		c.log.Warn("fiat list fetch failed", "err", err)
-		return
-	}
-	c.SetFiats(list)
-}
-
-// SetFiats applies the allowlist and denylist, so the picker only offers what
-// the config permits.
-func (c *Controller) SetFiats(list []lcw.Fiat) {
-	allow := make(map[string]bool, len(c.cfg.Currency.Allowlist))
-	for _, code := range c.cfg.Currency.Allowlist {
-		allow[lcw.NormalizeCode(code)] = true
-	}
-	deny := make(map[string]bool, len(c.cfg.Currency.Denylist))
-	for _, code := range c.cfg.Currency.Denylist {
-		deny[lcw.NormalizeCode(code)] = true
-	}
-
-	out := make([]snapshot.Fiat, 0, len(list))
-	for _, f := range list {
-		code := lcw.NormalizeCode(f.Code)
-		if deny[code] {
-			continue
-		}
-		if len(allow) > 0 && !allow[code] {
-			continue
-		}
-		out = append(out, snapshot.Fiat{Code: f.Code, Name: f.Name, Symbol: f.Symbol, Flag: f.Flag})
-	}
-	f := &snapshot.Fiats{Fiats: out, CachedAt: c.clk.Now()}
-	c.fiats = f
-	c.world.SetFiats(f)
-	if err := c.hub.Broadcast(hub.EventFiats, "", f); err != nil {
-		c.log.Warn("fiats broadcast failed", "err", err)
-	}
-	if c.fiatsPath != "" {
-		if err := store.WriteJSONAtomic(c.fiatsPath, f); err != nil {
-			c.log.Warn("caching the fiat list failed", "err", err)
-		}
-	}
-	c.log.Info("currencies available", "count", len(out), "of", len(list))
-}
-
-// SetFiatsPath tells the controller where to cache the currency list.
-func (c *Controller) SetFiatsPath(p string) { c.fiatsPath = p }
-
-func (c *Controller) Fiats() *snapshot.Fiats { return c.fiats }
 
 // RunReconcile keeps the local ledger honest against the API's own count.
 func (c *Controller) RunReconcile(ctx context.Context) {
@@ -300,10 +223,9 @@ func (c *Controller) Warm(coins map[string]*snapshot.Coins, overview map[string]
 type LastGood struct {
 	Coins    map[string]*snapshot.Coins    `json:"coins"`
 	Overview map[string]*snapshot.Overview `json:"overview"`
-	Fiats    *snapshot.Fiats               `json:"fiats"`
 }
 
 func (c *Controller) LastGood() LastGood {
 	w := c.world.Load()
-	return LastGood{Coins: w.Coins, Overview: w.Overview, Fiats: w.Fiats}
+	return LastGood{Coins: w.Coins, Overview: w.Overview}
 }

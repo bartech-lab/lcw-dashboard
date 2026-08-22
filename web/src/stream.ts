@@ -1,6 +1,6 @@
 import { signal, computed } from "@preact/signals";
 import type {
-  Alert, Coins, CoinRow, Credits, Fiats, Hello, HelloConfig, Overview, Status, Watchlist,
+  Alert, Coins, CoinRow, Credits, Hello, HelloConfig, Overview, Status, Watchlist,
 } from "./types";
 import * as prefs from "./prefs";
 
@@ -30,7 +30,6 @@ export const overview = signal<Overview | null>(null);
 export const status = signal<Status | null>(null);
 export const credits = signal<Credits | null>(null);
 export const watchlist = signal<Watchlist | null>(null);
-export const fiats = signal<Fiats | null>(null);
 export const alerts = signal<Alert[]>([]);
 
 export const rows = computed<CoinRow[]>(() => coins.value?.coins ?? []);
@@ -99,7 +98,6 @@ export function connect(): void {
     watchlist.value = w;
     prefs.watchlistCache.value = w.codes;
   });
-  bind<Fiats>("fiats", (f) => { fiats.value = f; });
   bind<Alert>("alert", (a) => {
     if (alerts.value.some((x) => x.eventId === a.eventId)) return;
     alerts.value = [a, ...alerts.value].slice(0, 100);
