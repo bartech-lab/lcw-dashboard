@@ -234,7 +234,7 @@ func TestHistoryFileRejectsUnsafeCodes(t *testing.T) {
 	}
 
 	// A coin code arrives from the API, so treat it as untrusted input.
-	for _, bad := range []string{"", "../../etc/passwd", "a/b", ".", "..", "___", "BTC/../ETH", "BTC\x00", strings.Repeat("A", 33)} {
+	for _, bad := range []string{"", "../../etc/passwd", "a/b", ".", "..", "___", "BTC/../ETH", "BTC\x00"} {
 		if _, err := p.HistoryFile(bad); err == nil {
 			t.Errorf("HistoryFile(%q) should be rejected", bad)
 		}
@@ -247,6 +247,54 @@ func TestHistoryFileAcceptsRealisticCodes(t *testing.T) {
 	for _, code := range []string{"BTC", "ETH", "HYPE", "PAXG", "1INCH", "USDT", "A-B", "A_B"} {
 		if _, err := p.HistoryFile(code); err != nil {
 			t.Errorf("HistoryFile(%q) rejected a legitimate code: %v", code, err)
+		}
+	}
+}
+
+// Live Coin Watch pads duplicated tickers with underscores, and real codes reach
+// 45 characters. Rejecting them on length denied those coins any history.
+func TestLongCodesAreShortenedNotRejected(t *testing.T) {
+	p := Paths{StateDir: "/tmp/state"}
+
+	long := "_________________________________________BULL"
+	path, err := p.HistoryFile(long)
+	if err != nil {
+		t.Fatalf("a 45-character code must be accepted: %v", err)
+	}
+	name := filepath.Base(path)
+	if len(name) > maxCodeLen+len(".ring") {
+		t.Errorf("filename %q is %d chars, want it bounded", name, len(name))
+	}
+
+	// Distinct long codes must not collide.
+	other := "_________________________________________BEAR"
+	otherPath, err := p.HistoryFile(other)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if otherPath == path {
+		t.Error("two different long codes produced the same file")
+	}
+
+	// And the mapping is stable across calls.
+	again, _ := p.HistoryFile(long)
+	if again != path {
+		t.Error("the same code produced two different files")
+	}
+}
+
+func TestRealWorldCodesAllMapToAFile(t *testing.T) {
+	p := Paths{StateDir: "/tmp/state"}
+	// Observed in the live top 2000.
+	for _, code := range []string{
+		"BTC", "______HYPE", "____TAO", "__LAYER",
+		"_______________________________TRUMP",
+		"_________________________________META",
+		"__________________________________________X",
+		"_________________________________________BULL",
+	} {
+		if _, err := p.HistoryFile(code); err != nil {
+			t.Errorf("HistoryFile(%q) rejected a real code: %v", code, err)
 		}
 	}
 }

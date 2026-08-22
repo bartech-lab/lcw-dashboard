@@ -6,6 +6,8 @@
 package store
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -60,19 +62,36 @@ func (p Paths) HistoryDir() string  { return filepath.Join(p.StateDir, "history"
 func (p Paths) SearchIndex() string { return filepath.Join(p.CacheDir, "search-index.json") }
 func (p Paths) Fiats() string       { return filepath.Join(p.CacheDir, "fiats.json") }
 
-// HistoryFile validates against an allowlist rather than rejecting bad shapes:
-// a "not equal to filepath.Base" check accepts "." and "..".
+// HistoryFile maps a coin code to a ring path.
+//
+// The character allowlist is the safety check: a "not equal to filepath.Base"
+// test accepts "." and "..", and enumerating traversal tricks is a losing game.
+//
+// Length is handled by shortening, not rejection. Live Coin Watch pads
+// duplicated tickers with underscores, and real codes reach 45 characters
+// (_________________________________________BULL) and will get longer. Rejecting
+// on length silently denied those coins any history at all.
 func (p Paths) HistoryFile(code string) (string, error) {
-	if !safeCodeForFilename(code) {
+	if !safeCodeChars(code) {
 		return "", fmt.Errorf("coin code is not safe as a filename: %q", code)
 	}
-	return filepath.Join(p.HistoryDir(), code+".ring"), nil
+	return filepath.Join(p.HistoryDir(), shortenCode(code)+".ring"), nil
 }
 
-const maxCodeLen = 32
+// maxCodeLen bounds the filename. Beyond it the code is truncated and given a
+// hash suffix, so every code still maps to exactly one file.
+const maxCodeLen = 48
 
-func safeCodeForFilename(code string) bool {
-	if code == "" || len(code) > maxCodeLen {
+func shortenCode(code string) string {
+	if len(code) <= maxCodeLen {
+		return code
+	}
+	sum := sha256.Sum256([]byte(code))
+	return code[:maxCodeLen-9] + "-" + hex.EncodeToString(sum[:4])
+}
+
+func safeCodeChars(code string) bool {
+	if code == "" {
 		return false
 	}
 	alnum := false
