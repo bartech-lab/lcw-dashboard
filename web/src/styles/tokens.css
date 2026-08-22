@@ -1,0 +1,166 @@
+/* The only file in the frontend containing colour literals, so a theme flip is
+   a CSS recalculation with no re-render.
+
+   Every text role measured against its own surface passes WCAG AA in both
+   themes. Muted ink deviates from the reference palette's #898781, which is
+   3.50:1 on light and fails AA for small text; #898781 survives only as the
+   1px chart crosshair. */
+
+:root {
+  color-scheme: light;
+
+  --bg-page: #f6f6f4;
+  --bg-surface: #fcfcfb;
+  --bg-elevated: #ffffff;
+  --bg-sunken: #efeeea;
+  --bg-hover: rgba(11, 11, 11, 0.04);
+  --bg-active: rgba(11, 11, 11, 0.07);
+  --bg-selected: rgba(42, 120, 214, 0.09);
+
+  --text-primary: #0b0b0b;    /* 19.17:1 */
+  --text-secondary: #52514e;  /*  7.73:1 */
+  --text-muted: #6b6a66;      /*  5.27:1 */
+  --text-inverse: #fcfcfb;
+
+  --border: rgba(11, 11, 11, 0.10);
+  --border-strong: #c3c2b7;
+  --divider: #e1e0d9;
+
+  /* Sign, not hue, is authoritative. Up-green and down-red measure DeltaE 4.6
+     apart under protanopia, so the glyph and the sign carry the meaning. */
+  --delta-up: #006300;        /*  7.35:1 */
+  --delta-down: #d03b3b;      /*  4.68:1 */
+  --delta-flat: #6b6a66;
+
+  --status-live: #0ca30c;
+  --status-warn: #8a5a00;
+  --status-warn-dot: #fab219;
+  --status-error: #d03b3b;
+  --status-info: #2a78d6;
+
+  --chart-line: #2a78d6;      /* 4.30:1 vs the plot surface */
+  --chart-area-from: rgba(42, 120, 214, 0.16);
+  --chart-area-to: rgba(42, 120, 214, 0);
+  --chart-grid: #e1e0d9;
+  --chart-axis: #c3c2b7;
+  --chart-tick: #6b6a66;
+  --chart-crosshair: #898781;
+  --chart-dot-ring: #fcfcfb;
+
+  --focus-ring: #2a78d6;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-lg: 15px;
+  --fs-xl: 20px;
+  --shadow-popover: 0 1px 2px rgba(11, 11, 11, 0.06), 0 8px 24px rgba(11, 11, 11, 0.10);
+  --row-h: 44px;
+  --dur-fast: 90ms;
+  --dur-med: 160ms;
+}
+
+/* Declared under both scopes: the media query covers the OS setting, the
+   attribute covers the toggle, and the :not() guard lets an explicit light
+   choice beat OS dark. */
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+
+    --bg-page: #0d0d0d;
+    --bg-surface: #1a1a19;
+    --bg-elevated: #232322;
+    --bg-sunken: #141413;
+    --bg-hover: rgba(255, 255, 255, 0.05);
+    --bg-active: rgba(255, 255, 255, 0.09);
+    --bg-selected: rgba(57, 135, 229, 0.16);
+
+    --text-primary: #ffffff;    /* 17.42:1 */
+    --text-secondary: #c3c2b7;  /*  9.72:1 */
+    --text-muted: #a3a29b;      /*  6.80:1 */
+    --text-inverse: #0b0b0b;
+
+    --border: rgba(255, 255, 255, 0.10);
+    --border-strong: #383835;
+    --divider: #2c2c2a;
+
+    --delta-up: #0ca30c;        /*  5.19:1 */
+    --delta-down: #e66767;      /*  5.39:1 */
+    --delta-flat: #a3a29b;
+
+    --status-live: #0ca30c;
+    --status-warn: #fab219;
+    --status-warn-dot: #fab219;
+    --status-error: #e66767;
+    --status-info: #3987e5;
+
+    --chart-line: #3987e5;      /* 4.79:1 */
+    --chart-area-from: rgba(57, 135, 229, 0.20);
+    --chart-area-to: rgba(57, 135, 229, 0);
+    --chart-grid: #2c2c2a;
+    --chart-axis: #383835;
+    --chart-tick: #a3a29b;
+    --chart-crosshair: #898781;
+    --chart-dot-ring: #1a1a19;
+
+    --focus-ring: #3987e5;
+    --shadow-popover: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 24px rgba(0, 0, 0, 0.55);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-page: #0d0d0d;
+  --bg-surface: #1a1a19;
+  --bg-elevated: #232322;
+  --bg-sunken: #141413;
+  --bg-hover: rgba(255, 255, 255, 0.05);
+  --bg-active: rgba(255, 255, 255, 0.09);
+  --bg-selected: rgba(57, 135, 229, 0.16);
+
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #a3a29b;
+  --text-inverse: #0b0b0b;
+
+  --border: rgba(255, 255, 255, 0.10);
+  --border-strong: #383835;
+  --divider: #2c2c2a;
+
+  --delta-up: #0ca30c;
+  --delta-down: #e66767;
+  --delta-flat: #a3a29b;
+
+  --status-live: #0ca30c;
+  --status-warn: #fab219;
+  --status-warn-dot: #fab219;
+  --status-error: #e66767;
+  --status-info: #3987e5;
+
+  --chart-line: #3987e5;
+  --chart-area-from: rgba(57, 135, 229, 0.20);
+  --chart-area-to: rgba(57, 135, 229, 0);
+  --chart-grid: #2c2c2a;
+  --chart-axis: #383835;
+  --chart-tick: #a3a29b;
+  --chart-crosshair: #898781;
+  --chart-dot-ring: #1a1a19;
+
+  --focus-ring: #3987e5;
+  --shadow-popover: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+
+:root[data-density="compact"] { --row-h: 36px; }
+:root[data-density="dense"]   { --row-h: 28px; }

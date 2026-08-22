@@ -178,17 +178,18 @@ type Status struct {
 // pure DTO layer: importing credits would pull in config, which references alert
 // rules, which import this package.
 type Credits struct {
-	Day          string         `json:"utcDay"`
-	Spend        int            `json:"localSpend"`
-	InFlight     int            `json:"inFlight"`
-	ByKind       map[string]int `json:"byKind"`
-	APIRemaining int            `json:"apiRemaining"`
-	APILimit     int            `json:"apiLimit"`
-	ReconciledAt time.Time      `json:"reconciledAt"`
-	Drift        int            `json:"drift"`
-	ResetsAt     time.Time      `json:"resetsAt"`
-	BudgetState  string         `json:"budgetState"`
-	Ceiling      int            `json:"dailyCeiling"`
+	Day               string         `json:"utcDay"`
+	Spend             int            `json:"localSpend"`
+	InFlight          int            `json:"inFlight"`
+	ByKind            map[string]int `json:"byKind"`
+	APIRemaining      int            `json:"apiRemaining"`
+	RemainingEstimate int            `json:"remainingEstimate"`
+	APILimit          int            `json:"apiLimit"`
+	ReconciledAt      time.Time      `json:"reconciledAt"`
+	Drift             int            `json:"drift"`
+	ResetsAt          time.Time      `json:"resetsAt"`
+	BudgetState       string         `json:"budgetState"`
+	Ceiling           int            `json:"dailyCeiling"`
 }
 
 type Watchlist struct {

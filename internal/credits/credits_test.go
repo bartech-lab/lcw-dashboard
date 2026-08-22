@@ -591,3 +591,57 @@ func TestClassifyMapsUpstreamErrors(t *testing.T) {
 		t.Errorf("state = %s, want exhausted", got)
 	}
 }
+
+// apiRemaining is API truth and must not drift as credits are spent locally;
+// the estimate is a separate derived number.
+func TestRemainingEstimateTracksSpendWithoutTouchingAPITruth(t *testing.T) {
+	h := newHarness(t, func(c *config.Credits) {
+		c.MinRequestGap = config.Duration(0)
+		c.Burst = 10000
+	})
+
+	h.led.Reconcile(9000, 10000)
+	if got := h.led.Report().APIRemaining; got != 9000 {
+		t.Fatalf("APIRemaining = %d, want 9000", got)
+	}
+
+	h.spend(t, 50)
+	r := h.led.Report()
+	if r.APIRemaining != 9000 {
+		t.Errorf("APIRemaining = %d, want it unchanged at 9000: it is API truth", r.APIRemaining)
+	}
+	if r.RemainingEstimate != 8950 {
+		t.Errorf("RemainingEstimate = %d, want 8950", r.RemainingEstimate)
+	}
+}
+
+func TestRemainingEstimateStartsAtTheFullAllowance(t *testing.T) {
+	// Before the first reconcile the UI must not show zero remaining.
+	h := newHarness(t, nil)
+	r := h.led.Report()
+	if r.RemainingEstimate != r.APILimit {
+		t.Errorf("RemainingEstimate = %d, want the full %d before any reconcile",
+			r.RemainingEstimate, r.APILimit)
+	}
+}
+
+func TestRemainingEstimateNeverGoesNegative(t *testing.T) {
+	h := newHarness(t, func(c *config.Credits) {
+		c.MinRequestGap = config.Duration(0)
+		c.Burst = 100000
+		// Deliberately above the API limit so the guard does not stop the spend
+		// before the estimate would go negative.
+		c.DailyCeiling = 30000
+		c.ReserveForOnDemand = 0
+		c.ConserveAt = 0.99
+		c.ConserveRecoverAt = 0.98
+		c.CriticalAt = 0.995
+		c.CriticalRecoverAt = 0.99
+	})
+	h.led.Reconcile(10, 10000)
+	h.spend(t, 100)
+
+	if got := h.led.Report().RemainingEstimate; got != 0 {
+		t.Errorf("RemainingEstimate = %d, want 0 rather than a negative number", got)
+	}
+}

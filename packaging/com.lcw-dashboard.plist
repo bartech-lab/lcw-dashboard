@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- launchd user agent. Install to ~/Library/LaunchAgents/com.lcw-dashboard.plist
+     with __HOME__ replaced by your home directory, then:
+
+       launchctl load -w ~/Library/LaunchAgents/com.lcw-dashboard.plist
+
+     RunAtLoad plus KeepAlive means it starts at login and restarts on crash.
+     launchd does not read .env files, so the key is set here or exported from a
+     wrapper script. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.lcw-dashboard</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__HOME__/.local/bin/lcw-dashboard</string>
+  </array>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>__HOME__</string>
+    <key>PATH</key>
+    <string>/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin</string>
+    <!-- Either set the key here, or leave it out and use the
+         lcw-dashboard-wrapper.sh approach described in the README. -->
+    <!-- <key>LCW_API_KEY</key><string>your-key-here</string> -->
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>__HOME__/Library/Logs/lcw-dashboard.log</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/Library/Logs/lcw-dashboard.log</string>
+
+  <key>ProcessType</key>
+  <string>Background</string>
+</dict>
+</plist>

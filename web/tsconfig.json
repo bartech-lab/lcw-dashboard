@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": [],
+    "paths": {
+      "preact": ["./vendor/preact/index.js"],
+      "preact/hooks": ["./vendor/preact/hooks/index.js"],
+      "@preact/signals": ["./vendor/signals/index.js"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}

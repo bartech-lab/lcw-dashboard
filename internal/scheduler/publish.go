@@ -90,7 +90,8 @@ func (c *Controller) publishCredits() {
 	}
 	cr := &snapshot.Credits{
 		Day: r.Day, Spend: r.Spend, InFlight: r.InFlight, ByKind: byKind,
-		APIRemaining: r.APIRemaining, APILimit: r.APILimit,
+		APIRemaining: r.APIRemaining, RemainingEstimate: r.RemainingEstimate,
+		APILimit:     r.APILimit,
 		ReconciledAt: r.ReconciledAt, Drift: r.Drift, ResetsAt: r.ResetsAt,
 		BudgetState: string(c.guard.State()), Ceiling: c.cfg.Credits.DailyCeiling,
 	}

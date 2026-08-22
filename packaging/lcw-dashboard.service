@@ -1,0 +1,41 @@
+# systemd user unit. Install to ~/.config/systemd/user/lcw-dashboard.service
+#
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now lcw-dashboard
+#
+# Survives reboot only if lingering is enabled, otherwise the user session ends
+# at logout and takes the service with it:
+#
+#   loginctl enable-linger $USER
+
+[Unit]
+Description=Live Coin Watch dashboard
+Documentation=https://github.com/bartech/lcw-dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/lcw-dashboard
+Restart=on-failure
+RestartSec=5s
+
+# The API key lives here, not in this unit file.
+EnvironmentFile=-%h/.config/lcw-dashboard/.env
+
+# notify-send needs the session bus to reach the desktop notification daemon.
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
+
+# The dashboard only needs its own state and cache directories.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.local/state/lcw-dashboard %h/.cache/lcw-dashboard
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+MemoryMax=256M
+
+[Install]
+WantedBy=default.target

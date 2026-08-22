@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -37,9 +38,15 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 	s.ctrl.Presence(clientID, view, currency, visible)
 	defer s.ctrl.Disconnect(clientID)
 
-	// hello first, so the client never guesses an interval.
-	if err := s.hub.SendTo(clientID, hub.EventHello, s.ctrl.Hello(clientID, s.version)); err != nil {
-		s.log.Warn("hello send failed", "err", err)
+	// hello is written directly rather than queued, so it always precedes the
+	// replayed data frames. The client needs the config before the first table.
+	if body, err := json.Marshal(s.ctrl.Hello(clientID, s.version)); err == nil {
+		ev := hub.Event{ID: 0, Type: hub.EventHello, Data: body}
+		if _, err := w.Write(ev.Encode()); err != nil {
+			return
+		}
+	} else {
+		s.log.Warn("hello marshal failed", "err", err)
 	}
 
 	lastSeen := lastEventID(r)

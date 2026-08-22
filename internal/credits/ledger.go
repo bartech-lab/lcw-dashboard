@@ -44,24 +44,32 @@ type Ledger struct {
 	spend int
 	kinds map[Kind]int
 	// reserved is in-flight; committed spend moves out of it.
-	reserved     int
+	reserved int
+	// apiRemaining is API truth, written only by Reconcile. It is never
+	// decremented locally: using one field for both truth and estimate made the
+	// allowance-reset detection below unreliable.
 	apiRemaining int
-	apiLimit     int
-	reconciledAt time.Time
-	drift        int
-	past         map[string]int
-	dirty        bool
+	// spendAtReconcile anchors the local estimate to the last known truth.
+	spendAtReconcile int
+	apiLimit         int
+	reconciledAt     time.Time
+	drift            int
+	past             map[string]int
+	dirty            bool
 }
 
 const pastDaysKept = 7
 
 func NewLedger(clk clock.Clock, apiLimit int) *Ledger {
 	return &Ledger{
-		clk:      clk,
-		day:      utcDay(clk.Now()),
-		kinds:    make(map[Kind]int),
-		apiLimit: apiLimit,
-		past:     make(map[string]int),
+		clk:   clk,
+		day:   utcDay(clk.Now()),
+		kinds: make(map[Kind]int),
+		// Assume a full allowance until /credits says otherwise, or the UI would
+		// show zero remaining before the first reconcile.
+		apiLimit:     apiLimit,
+		apiRemaining: apiLimit,
+		past:         make(map[string]int),
 	}
 }
 
@@ -90,6 +98,7 @@ func (l *Ledger) rollover(now time.Time) {
 	l.kinds = make(map[Kind]int)
 	l.reserved = 0
 	l.apiRemaining = l.apiLimit
+	l.spendAtReconcile = 0
 	l.drift = 0
 	l.dirty = true
 }
@@ -135,9 +144,6 @@ func (l *Ledger) Commit(kind Kind, n int) {
 	}
 	l.spend += n
 	l.kinds[kind] += n
-	if l.apiRemaining > 0 {
-		l.apiRemaining -= n
-	}
 	l.dirty = true
 }
 
@@ -166,20 +172,25 @@ func (l *Ledger) Reconcile(remaining, limit int) {
 		l.apiLimit = limit
 	}
 
-	// A jump upwards means the allowance reset, even if the local day string
-	// disagrees because of a clock problem.
-	if remaining > l.apiRemaining && l.apiRemaining > 0 && l.spend > 0 {
+	// Both sides of this comparison are API truth, so an upward jump really does
+	// mean the allowance reset, even if the local day string disagrees because of
+	// a clock problem.
+	if remaining > l.apiRemaining && l.spend > 0 {
 		l.spend = 0
 		l.kinds = make(map[Kind]int)
 		l.drift = 0
 	}
 
 	l.apiRemaining = remaining
+	l.spendAtReconcile = l.spend
 	if l.apiLimit > 0 {
 		apiSpend := l.apiLimit - remaining
 		l.drift = apiSpend - l.spend
+		// The API is authoritative about what it has served, so adopt a higher
+		// count. Never adopt a lower one: we know what we sent.
 		if apiSpend > l.spend {
 			l.spend = apiSpend
+			l.spendAtReconcile = apiSpend
 		}
 	}
 	l.reconciledAt = now
@@ -197,6 +208,9 @@ type Report struct {
 	Drift        int            `json:"drift"`
 	ResetsAt     time.Time      `json:"resetsAt"`
 	Past         map[string]int `json:"past,omitempty"`
+	// RemainingEstimate is APIRemaining less what has been spent since the last
+	// reconcile. It is what the UI shows between reconciles.
+	RemainingEstimate int `json:"remainingEstimate"`
 }
 
 func (l *Ledger) Report() Report {
@@ -213,6 +227,10 @@ func (l *Ledger) Report() Report {
 	for k, v := range l.past {
 		past[k] = v
 	}
+	estimate := l.apiRemaining - (l.spend - l.spendAtReconcile)
+	if estimate < 0 {
+		estimate = 0
+	}
 	return Report{
 		Day:          l.day,
 		Spend:        l.spend,
@@ -224,6 +242,8 @@ func (l *Ledger) Report() Report {
 		Drift:        l.drift,
 		ResetsAt:     nextUTCMidnight(now),
 		Past:         past,
+
+		RemainingEstimate: estimate,
 	}
 }
 
@@ -279,6 +299,7 @@ func (l *Ledger) Restore(v any) {
 		l.kinds = s.ByKind
 	}
 	l.apiRemaining = s.APIRemaining
+	l.spendAtReconcile = s.Spend
 	if s.APILimit > 0 {
 		l.apiLimit = s.APILimit
 	}
