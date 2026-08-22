@@ -8,7 +8,6 @@ package snapshot
 import (
 	"time"
 
-	"github.com/bartech/lcw-dashboard/internal/credits"
 	"github.com/bartech/lcw-dashboard/internal/lcw"
 )
 
@@ -175,10 +174,21 @@ type Status struct {
 	SetupHint      string `json:"setupHint,omitempty"`
 }
 
+// Credits mirrors the ledger report rather than importing it. This package is a
+// pure DTO layer: importing credits would pull in config, which references alert
+// rules, which import this package.
 type Credits struct {
-	credits.Report
-	BudgetState string `json:"budgetState"`
-	Ceiling     int    `json:"dailyCeiling"`
+	Day          string         `json:"utcDay"`
+	Spend        int            `json:"localSpend"`
+	InFlight     int            `json:"inFlight"`
+	ByKind       map[string]int `json:"byKind"`
+	APIRemaining int            `json:"apiRemaining"`
+	APILimit     int            `json:"apiLimit"`
+	ReconciledAt time.Time      `json:"reconciledAt"`
+	Drift        int            `json:"drift"`
+	ResetsAt     time.Time      `json:"resetsAt"`
+	BudgetState  string         `json:"budgetState"`
+	Ceiling      int            `json:"dailyCeiling"`
 }
 
 type Watchlist struct {
