@@ -6,6 +6,7 @@ import * as S from "./stream";
 import { back } from "./router";
 import { toggleWatch } from "./app";
 import { announce } from "./announce";
+import { Heart } from "./heart";
 
 export function CoinDetail({ code }: { code: string }) {
   const [data, setData] = useState<Detail | null>(null);
@@ -84,10 +85,11 @@ function HeartButton({ code }: { code: string }) {
   const on = wl.includes(code);
   return (
     <button
-      type="button" class="chip" aria-pressed={on}
+      type="button" class="chip chip-icon" aria-pressed={on}
       onClick={() => void toggleWatch(code)}
     >
-      {on ? "♥ On watchlist" : "♡ Add to watchlist"}
+      <Heart on={on} size={16} />
+      {on ? "On watchlist" : "Add to watchlist"}
     </button>
   );
 }

@@ -53,13 +53,14 @@ function deltaColumn(id: ColumnId, w: DeltaWindow, label: string, visible: boole
 export const ALL_COLUMNS: ColumnDef[] = [
   {
     id: "rank", label: "#", short: "#", group: "identity", align: "left",
-    width: 68, locked: true, defaultVisible: true, sortable: true,
+    // 26px heart, an 8px gap, and room for a five-digit rank.
+    width: 92, locked: true, defaultVisible: true, sortable: true,
     apiSort: "rank",
     value: (c) => (c.rank > 0 ? c.rank : null),
   },
   {
     id: "coin", label: "Coin", short: "Coin", group: "identity", align: "left",
-    width: 150, locked: true, defaultVisible: true, sortable: true,
+    width: 158, locked: true, defaultVisible: true, sortable: true,
     apiSort: "name",
     value: () => null,
   },

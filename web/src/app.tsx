@@ -8,6 +8,7 @@ import { ALL_COLUMNS, GROUP_LABELS, HIDE_BELOW, columnDef, type ColumnId, type G
 import { CoinDetail } from "./detail";
 import { route } from "./router";
 import { announce } from "./announce";
+import { Heart } from "./heart";
 
 const STABLE = new Set(["USDT", "USDC", "DAI", "TUSD", "USDE", "FDUSD", "USDS", "PYUSD", "BUSD"]);
 
@@ -662,7 +663,7 @@ function Cell({ id, coin }: { id: ColumnId; coin: CoinRow }) {
             aria-label={`${coin.name}, ${on ? "remove from" : "add to"} watchlist`}
             onClick={() => void toggleWatch(coin.code)}
           >
-            {on ? "♥" : "♡"}
+            <Heart on={on} />
           </button>
           {/* Global rank, not a row index: the sequence can read 1, 2, 4, 7. */}
           <span class="rank-num">{coin.rank > 0 ? coin.rank : fmt.DASH}</span>
@@ -675,10 +676,9 @@ function Cell({ id, coin }: { id: ColumnId; coin: CoinRow }) {
     return (
       <td data-col={id} class={cls}>
         <a class="coin" href={`#/coin/${coin.code}`}>
-          <img src={coin.icons.png32 || coin.icons.png64} alt="" width="22" height="22" loading="lazy" />
-          <span style={{ minWidth: 0 }}>
+          <img src={coin.icons.png32 || coin.icons.png64} alt="" width="24" height="24" loading="lazy" />
+          <span class="coin-labels">
             <span class="coin-code">{fmt.displayCode(coin.code)}</span>
-            <br />
             <span class="coin-name">{coin.name}</span>
           </span>
         </a>
