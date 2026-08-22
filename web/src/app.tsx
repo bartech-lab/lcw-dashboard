@@ -651,7 +651,7 @@ function Row({ coin, cols }: { coin: CoinRow; cols: ColumnId[] }) {
 
 function Cell({ id, coin }: { id: ColumnId; coin: CoinRow }) {
   const def = columnDef(id);
-  const ctx = { locale: prefs.locale.value, currency: prefs.currency.value };
+  const ctx = { locale: prefs.locale.value, currency: S.currency.value };
   const cls = def.align === "left" ? "left" : "";
 
   if (id === "rank") {

@@ -19,7 +19,11 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 	}
 	q := r.URL.Query()
 	view := snapshot.View(orDefault(q.Get("view"), s.cfg.Coins.DefaultView))
-	currency := orDefault(q.Get("currency"), s.cfg.Currency.Default)
+	// The configured currency is the only one. A client-supplied value is
+	// ignored rather than honoured: this path used to accept anything, so a
+	// stale pick in localStorage could drive the whole dashboard while
+	// /api/control was rejecting the same value.
+	currency := s.cfg.Currency.Default
 	visible := q.Get("visible") != "0"
 
 	sortField := lcw.SortField(orDefault(q.Get("sort"), string(s.cfg.Coins.Sort)))

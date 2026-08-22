@@ -12,7 +12,7 @@ export function CoinDetail({ code }: { code: string }) {
   const [data, setData] = useState<Detail | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const range = prefs.chartRange.value;
-  const currency = prefs.currency.value;
+  const currency = S.currency.value;
   const h1 = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {

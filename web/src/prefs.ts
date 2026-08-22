@@ -3,7 +3,7 @@ import type { Density, Theme, View } from "./types";
 import { ALL_COLUMNS, DEFAULT_ORDER, type ColumnId, isColumn, columnDef } from "./columns";
 
 export const PREFS_KEY = "lcwd:prefs";
-export const PREFS_VERSION = 2;
+export const PREFS_VERSION = 3;
 
 export interface Preset { name: string; visible: Partial<Record<ColumnId, boolean>>; order: ColumnId[] }
 
@@ -11,7 +11,6 @@ export interface Prefs {
   v: number;
   theme: Theme;
   locale: string;
-  currency: string;
   view: View;
   density: Density;
   sortCol: ColumnId;
@@ -37,7 +36,6 @@ export function defaults(): Prefs {
     v: PREFS_VERSION,
     theme: "auto",
     locale: "en-US",
-    currency: "USD",
     view: "top",
     density: "relaxed",
     sortCol: "rank",
@@ -63,6 +61,12 @@ const MIGRATIONS: Record<number, Migration> = {
   // single credit either way. Only the old default is raised; a deliberate 10 or
   // 25 is left alone.
   1: (o) => ({ ...o, v: 2, pageSize: o.pageSize === 50 ? 100 : o.pageSize }),
+  // v2 stored a currency. The server owns it, and a stale pick from the old
+  // picker was overriding the configured one, so it is dropped.
+  2: (o) => {
+    const { currency: _dropped, ...rest } = o;
+    return { ...rest, v: 3 };
+  },
 };
 
 export function loadPrefs(): Prefs {
@@ -172,7 +176,6 @@ const initial = loadPrefs();
 
 export const theme = signal<Theme>(initial.theme);
 export const locale = signal(initial.locale);
-export const currency = signal(initial.currency);
 export const view = signal<View>(initial.view);
 export const density = signal<Density>(initial.density);
 export const sortCol = signal<ColumnId>(initial.sortCol);
@@ -194,7 +197,6 @@ function current(): Prefs {
     v: PREFS_VERSION,
     theme: theme.value,
     locale: locale.value,
-    currency: currency.value,
     view: view.value,
     density: density.value,
     sortCol: sortCol.value,
@@ -240,7 +242,6 @@ export function startPersistence(): void {
 function apply(p: Prefs): void {
   theme.value = p.theme;
   locale.value = p.locale;
-  currency.value = p.currency;
   view.value = p.view;
   density.value = p.density;
   sortCol.value = p.sortCol;

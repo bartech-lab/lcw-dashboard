@@ -319,13 +319,12 @@ func TestControlRejectsUnknownViewAndCurrency(t *testing.T) {
 		t.Errorf("unknown view: status = %d, want 400", res.StatusCode)
 	}
 
-	// There is one configured currency, so anything else is refused rather than
-	// spending a credit on a request that cannot help.
-	res, body := e.send(t, "POST", "/api/control", map[string]any{
+	// A currency in the request is ignored, not honoured: the server owns it.
+	_, body := e.send(t, "POST", "/api/control", map[string]any{
 		"clientId": "c1", "view": "top", "currency": "EUR",
 	})
-	if res.StatusCode != http.StatusBadRequest {
-		t.Errorf("unconfigured currency: status = %d, want 400: %s", res.StatusCode, body)
+	if strings.Contains(body, "EUR") {
+		t.Errorf("control honoured a foreign currency: %s", body)
 	}
 }
 
@@ -562,5 +561,40 @@ func TestUnknownAPIPathReturns404JSON(t *testing.T) {
 	}
 	if !strings.Contains(body, "no such endpoint") {
 		t.Errorf("body = %s", body)
+	}
+}
+
+// The SSE path used to honour any currency the client sent while /api/control
+// rejected the same value, so a stale pick in localStorage drove the whole
+// dashboard. The server owns the currency now.
+func TestClientCannotChangeTheCurrency(t *testing.T) {
+	e := newEnv(t, nil)
+
+	req, _ := http.NewRequest("GET",
+		e.srv.URL+"/api/stream?client_id=t1&view=top&currency=EUR&visible=1", nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	res, err := e.srv.Client().Do(req.WithContext(ctx))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+
+	buf := make([]byte, 8192)
+	n, _ := res.Body.Read(buf)
+	head := string(buf[:n])
+	if strings.Contains(head, `"currency":"EUR"`) {
+		t.Errorf("the stream honoured a currency the server does not offer:\n%s", head)
+	}
+	if !strings.Contains(head, `"defaultCurrency":"USD"`) {
+		t.Errorf("hello should report the configured currency:\n%s", head)
+	}
+
+	// And a control message cannot smuggle one through either.
+	_, body := e.send(t, "POST", "/api/control", map[string]any{
+		"clientId": "t1", "currency": "EUR",
+	})
+	if strings.Contains(body, "EUR") {
+		t.Errorf("control accepted a foreign currency: %s", body)
 	}
 }

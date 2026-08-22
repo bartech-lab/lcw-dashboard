@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/bartech/lcw-dashboard/internal/credits"
@@ -19,7 +18,7 @@ type controlRequest struct {
 	ClientID string  `json:"clientId"`
 	Visible  *bool   `json:"visible"`
 	View     *string `json:"view"`
-	Currency *string `json:"currency"`
+	// No Currency field: there is one currency and the server owns it.
 	// Sort and Order arrive only when the client asks for a market-wide page.
 	Sort  *string `json:"sort"`
 	Order *string `json:"order"`
@@ -56,16 +55,9 @@ func (s *Server) handleControl(w http.ResponseWriter, r *http.Request) {
 	if req.View != nil {
 		view = snapshot.View(*req.View)
 	}
-	if req.Currency != nil && *req.Currency != "" {
-		currency = *req.Currency
-	}
-	// One currency, set in config. There is no picker, because most of the 166
-	// fiats the API lists return no rate at all.
-	if !strings.EqualFold(currency, s.cfg.Currency.Default) {
-		writeError(w, http.StatusBadRequest, "only one currency is configured",
-			s.cfg.Currency.Default)
-		return
-	}
+	// One currency, owned by the server, so nothing the client sends can change
+	// it.
+	currency = s.cfg.Currency.Default
 	if req.Sort != nil {
 		next := lcw.SortField(*req.Sort)
 		if !next.Valid() {

@@ -34,6 +34,13 @@ export const alerts = signal<Alert[]>([]);
 
 export const rows = computed<CoinRow[]>(() => coins.value?.coins ?? []);
 
+/**
+ * The display currency, from the server. The client deliberately does not store
+ * one: a value cached here overrode the configured currency and was impossible
+ * to clear from the UI once the picker was removed.
+ */
+export const currency = computed(() => serverConfig.value?.defaultCurrency ?? "USD");
+
 // Age is derived from the newest fetch, and the table is dimmed rather than
 // blanked when it grows.
 export const dataAgeMs = computed(() => {
@@ -71,7 +78,6 @@ export function connect(): void {
   const params = new URLSearchParams({
     client_id: clientId,
     view: prefs.view.value,
-    currency: prefs.currency.value,
     visible: document.hidden ? "0" : "1",
     ...serverSort(),
   });
@@ -214,8 +220,7 @@ export function serverSort(): { sort: string; order: string } {
 }
 
 export async function control(patch: {
-  visible?: boolean; view?: string; currency?: string;
-  sort?: string; order?: string;
+  visible?: boolean; view?: string; sort?: string; order?: string;
 }): Promise<ControlReply | null> {
   try {
     const res = await fetch("/api/control", {
@@ -234,7 +239,7 @@ export async function control(patch: {
 
 function postVisibility(visible: boolean): void {
   const body = JSON.stringify({
-    clientId, visible, view: prefs.view.value, currency: prefs.currency.value,
+    clientId, visible, view: prefs.view.value,
   });
   // sendBeacon because a regular fetch may be cancelled as the tab freezes.
   if (!visible && navigator.sendBeacon) {
@@ -244,13 +249,13 @@ function postVisibility(visible: boolean): void {
   // Always send the full state. Sending visibility alone once let the server
   // fall back to its configured default view and discard the user's choice.
   void control({
-    visible, view: prefs.view.value, currency: prefs.currency.value, ...serverSort(),
+    visible, view: prefs.view.value, ...serverSort(),
   });
 }
 
 /** Ask the server to change what it fetches, after a sort or scope change. */
 export function pushSort(): void {
-  void control({ view: prefs.view.value, currency: prefs.currency.value, ...serverSort() });
+  void control({ view: prefs.view.value, ...serverSort() });
 }
 
 export async function refresh(what = "coins"): Promise<ControlReply | null> {
