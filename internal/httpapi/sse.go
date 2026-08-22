@@ -46,11 +46,16 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key := s.viewKey(view, currency, sortField, order)
+	offset, _ := strconv.Atoi(q.Get("offset"))
+	if offset < 0 {
+		offset = 0
+	}
+
+	key := s.viewKey(view, currency, sortField, order, offset)
 	events, replay := s.hub.Register(clientID, key)
 	defer s.hub.Unregister(clientID)
 
-	s.ctrl.Presence(clientID, view, currency, sortField, order, visible)
+	s.ctrl.Presence(clientID, view, currency, sortField, order, offset, visible)
 	defer s.ctrl.Disconnect(clientID)
 
 	// hello is written directly rather than queued, so it always precedes the
@@ -115,14 +120,15 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 // viewKey must match scheduler.ViewKey.String exactly, or a client subscribes to
 // a key the controller never publishes.
 func (s *Server) viewKey(view snapshot.View, currency string,
-	sortField lcw.SortField, order lcw.SortOrder) string {
+	sortField lcw.SortField, order lcw.SortOrder, offset int) string {
 
 	hash := ""
 	if view == snapshot.ViewFavourites {
 		hash = s.watch.Hash()
 	}
 	return string(view) + "|" + currency + "|" + hash +
-		"|" + string(sortField) + "|" + string(order)
+		"|" + string(sortField) + "|" + string(order) +
+		"|" + strconv.Itoa(offset)
 }
 
 func lastEventID(r *http.Request) uint64 {

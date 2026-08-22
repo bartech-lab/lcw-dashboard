@@ -183,6 +183,8 @@ export const sortDir = signal<"asc" | "desc">(initial.sortDir);
 export const sortScope = signal<"page" | "market">(initial.sortScope);
 export const pageSize = signal(initial.pageSize);
 export const page = signal(1);
+/** Where the fetched block starts in the ranking. Server-side, one credit each. */
+export const offset = signal(0);
 export const columnVisible = signal(initial.columns.visible);
 export const columnOrder = signal(initial.columns.order);
 export const presets = signal(initial.presets);

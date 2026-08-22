@@ -140,7 +140,8 @@
 .chip[aria-pressed="true"], .chip[aria-current="true"] {
   background: var(--bg-selected); border-color: var(--status-info); color: var(--text-primary); font-weight: 600;
 }
-.chip:hover { background: var(--bg-hover); }
+.chip:hover:not(:disabled) { background: var(--bg-hover); }
+.chip:disabled { opacity: 0.4; cursor: default; }
 .chip-icon { display: inline-flex; align-items: center; gap: 6px; }
 .chip-icon[aria-pressed="true"] { color: var(--delta-down); }
 .spacer { margin-left: auto; }
@@ -236,6 +237,7 @@ td.left { text-align: left; }
 }
 .pop h3 { margin: var(--space-3) 0 var(--space-1); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
 .pop h3:first-child { margin-top: 0; }
+.hint { margin: var(--space-1) 0 0; color: var(--text-muted); font-size: var(--fs-xs); }
 .pop-anchor { position: relative; }
 .col-row { display: flex; align-items: center; gap: var(--space-2); padding: 3px 0; }
 .col-row label { display: flex; align-items: center; gap: var(--space-2); flex: 1; cursor: pointer; }
@@ -271,4 +273,7 @@ td.left { text-align: left; }
 @container tbl (max-width: 920px)  { [data-col="d_hour"] { display: none; } }
 @container tbl (max-width: 860px)  { [data-col="age"], [data-col="ath"], [data-col="fromAth"], [data-col="supply"] { display: none; } }
 
+/* Showing every column only helps if the table may exceed its container: with
+   width 100% it just squeezes the columns instead of scrolling. */
 .wide [data-col] { display: table-cell !important; }
+.wide table { width: max-content; min-width: 100%; }

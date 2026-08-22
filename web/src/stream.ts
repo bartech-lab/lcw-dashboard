@@ -79,6 +79,7 @@ export function connect(): void {
     client_id: clientId,
     view: prefs.view.value,
     visible: document.hidden ? "0" : "1",
+    offset: String(prefs.offset.value),
     ...serverSort(),
   });
   es = new EventSource(`/api/stream?${params}`);
@@ -220,7 +221,7 @@ export function serverSort(): { sort: string; order: string } {
 }
 
 export async function control(patch: {
-  visible?: boolean; view?: string; sort?: string; order?: string;
+  visible?: boolean; view?: string; sort?: string; order?: string; offset?: number;
 }): Promise<ControlReply | null> {
   try {
     const res = await fetch("/api/control", {
@@ -239,7 +240,7 @@ export async function control(patch: {
 
 function postVisibility(visible: boolean): void {
   const body = JSON.stringify({
-    clientId, visible, view: prefs.view.value,
+    clientId, visible, view: prefs.view.value, offset: prefs.offset.value,
   });
   // sendBeacon because a regular fetch may be cancelled as the tab freezes.
   if (!visible && navigator.sendBeacon) {
@@ -249,13 +250,13 @@ function postVisibility(visible: boolean): void {
   // Always send the full state. Sending visibility alone once let the server
   // fall back to its configured default view and discard the user's choice.
   void control({
-    visible, view: prefs.view.value, ...serverSort(),
+    visible, view: prefs.view.value, offset: prefs.offset.value, ...serverSort(),
   });
 }
 
-/** Ask the server to change what it fetches, after a sort or scope change. */
+/** Ask the server to change what it fetches, after a sort, scope or page change. */
 export function pushSort(): void {
-  void control({ view: prefs.view.value, ...serverSort() });
+  void control({ view: prefs.view.value, offset: prefs.offset.value, ...serverSort() });
 }
 
 export async function refresh(what = "coins"): Promise<ControlReply | null> {

@@ -3,6 +3,7 @@ package scheduler
 import (
 	"context"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/bartech/lcw-dashboard/internal/alerts"
@@ -115,10 +116,11 @@ type command struct {
 	currency   string
 	sort       lcw.SortField
 	order      lcw.SortOrder
+	offset     int
 	visible    bool
 	what       string
 	reply      chan RefreshReply
-	stateReply chan [4]string
+	stateReply chan [5]string
 }
 
 // RefreshReply tells the caller what the controller decided, so the UI can show
@@ -151,12 +153,12 @@ type result struct {
 
 // Presence records a client heartbeat, visibility change or view switch.
 func (c *Controller) Presence(id string, view snapshot.View, currency string,
-	sort lcw.SortField, order lcw.SortOrder, visible bool) RefreshReply {
+	sort lcw.SortField, order lcw.SortOrder, offset int, visible bool) RefreshReply {
 
 	reply := make(chan RefreshReply, 1)
 	c.send(command{
 		kind: cmdPresence, clientID: id, view: view, currency: currency,
-		sort: sort, order: order, visible: visible, reply: reply,
+		sort: sort, order: order, offset: offset, visible: visible, reply: reply,
 	})
 	select {
 	case r := <-reply:
@@ -241,7 +243,7 @@ func (c *Controller) handleCommand(ctx context.Context, cmd command) {
 	case cmdPresence:
 		before := c.activeKey()
 		changed := c.presence.upsert(cmd.clientID, cmd.view, cmd.currency,
-			cmd.sort, cmd.order, cmd.visible, now)
+			cmd.sort, cmd.order, cmd.offset, cmd.visible, now)
 		c.recomputeRotation()
 		// A view or currency switch is an explicit intent, not a wake-up to
 		// coalesce, so it must not be swallowed by the focus debounce.
@@ -314,9 +316,10 @@ func (c *Controller) handleCommand(ctx context.Context, cmd command) {
 		c.publishCredits()
 
 	case cmdClientState:
-		var out [4]string
+		var out [5]string
 		if cl, ok := c.presence.clients[cmd.clientID]; ok {
-			out = [4]string{string(cl.View), cl.Currency, string(cl.Sort), string(cl.Order)}
+			out = [5]string{string(cl.View), cl.Currency, string(cl.Sort),
+				string(cl.Order), strconv.Itoa(cl.Offset)}
 		}
 		if cmd.stateReply != nil {
 			cmd.stateReply <- out
@@ -440,15 +443,16 @@ func (c *Controller) defaultKey() ViewKey {
 // ClientState reports what a client is currently on, so a partial control
 // message can patch rather than reset. Empty values mean the client is unknown.
 func (c *Controller) ClientState(clientID string) (view snapshot.View,
-	currency string, sortField lcw.SortField, order lcw.SortOrder) {
+	currency string, sortField lcw.SortField, order lcw.SortOrder, offset int) {
 
-	reply := make(chan [4]string, 1)
+	reply := make(chan [5]string, 1)
 	c.send(command{kind: cmdClientState, clientID: clientID, stateReply: reply})
 	select {
 	case v := <-reply:
-		return snapshot.View(v[0]), v[1], lcw.SortField(v[2]), lcw.SortOrder(v[3])
+		off, _ := strconv.Atoi(v[4])
+		return snapshot.View(v[0]), v[1], lcw.SortField(v[2]), lcw.SortOrder(v[3]), off
 	case <-time.After(time.Second):
-		return "", "", "", ""
+		return "", "", "", "", 0
 	}
 }
 
@@ -458,7 +462,8 @@ func (c *Controller) keyFor(clientID string) ViewKey {
 	if !ok {
 		return c.activeKey()
 	}
-	k := ViewKey{View: cl.View, Currency: cl.Currency, Sort: cl.Sort, Order: cl.Order}
+	k := ViewKey{View: cl.View, Currency: cl.Currency, Sort: cl.Sort,
+		Order: cl.Order, Offset: cl.Offset}
 	if cl.View == snapshot.ViewFavourites {
 		k.WatchHash = c.watch.Hash()
 	}

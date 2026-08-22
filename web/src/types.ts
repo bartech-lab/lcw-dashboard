@@ -113,16 +113,6 @@ export interface Hello {
 
 export interface Point { date: number; rate: Num; volume: Num; cap: Num }
 
-export interface Detail {
-  coin: CoinRow;
-  range: string; currency: string;
-  history: Point[];
-  source: "local" | "api" | "mixed";
-  fromCache: boolean;
-  creditsUsed: number;
-  cachedAt: string;
-}
-
 export interface Alert {
   eventId: string; ruleId: string; ruleName: string; severity: string;
   code: string; name: string; currency: string;

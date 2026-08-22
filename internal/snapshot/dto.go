@@ -97,6 +97,10 @@ type Coins struct {
 	StaleSince  *time.Time `json:"staleSince"`
 	Error       *WireError `json:"error"`
 	CreditsUsed int        `json:"creditsUsed"`
+	// Offset and Limit describe which slice of the ranking this is, so the UI can
+	// label the page and know whether another one exists.
+	Offset int `json:"offset"`
+	Limit  int `json:"limit"`
 	// Rotating means several view keys share the poll loop, so this view refreshes
 	// slower than the configured interval.
 	Rotating bool `json:"rotating"`
@@ -229,18 +233,6 @@ type Hello struct {
 	ServerVersion string      `json:"serverVersion"`
 	StartedAt     time.Time   `json:"startedAt"`
 	Config        HelloConfig `json:"config"`
-}
-
-// Detail is the coin detail view payload.
-type Detail struct {
-	Coin        CoinRow   `json:"coin"`
-	Range       string    `json:"range"`
-	Currency    string    `json:"currency"`
-	History     []Point   `json:"history"`
-	Source      string    `json:"source"` // local|api|mixed
-	FromCache   bool      `json:"fromCache"`
-	CreditsUsed int       `json:"creditsUsed"`
-	CachedAt    time.Time `json:"cachedAt"`
 }
 
 type Point struct {

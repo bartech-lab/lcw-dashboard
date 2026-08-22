@@ -387,50 +387,6 @@ func TestSearchReportsAColdIndex(t *testing.T) {
 	}
 }
 
-func TestCoinDetailRejectsAnUnknownRange(t *testing.T) {
-	e := newEnv(t, nil)
-	res, body := e.get(t, "/api/coins/BTC?range=decade")
-	if res.StatusCode != http.StatusBadRequest {
-		t.Errorf("status = %d, want 400: %s", res.StatusCode, body)
-	}
-}
-
-func TestCoinDetailFetchesAndThenServesFromCache(t *testing.T) {
-	e := newEnv(t, nil)
-
-	res, body := e.get(t, "/api/coins/BTC?range=7d&currency=USD")
-	if res.StatusCode != 200 {
-		t.Fatalf("status = %d: %s", res.StatusCode, body)
-	}
-	var first snapshot.Detail
-	if err := json.Unmarshal([]byte(body), &first); err != nil {
-		t.Fatal(err)
-	}
-	if first.Coin.Code != "BTC" {
-		t.Errorf("code = %q", first.Coin.Code)
-	}
-	if first.CreditsUsed == 0 {
-		t.Error("a cold detail request should report the credits it spent")
-	}
-	// The stub returns delta.day 1.063, which must arrive as percent.
-	if first.Coin.ChangePct.Day == nil || *first.Coin.ChangePct.Day < 6.29 {
-		t.Errorf("ChangePct.Day = %v, want about 6.3", first.Coin.ChangePct.Day)
-	}
-	if strings.Contains(body, `"delta"`) {
-		t.Error("a raw delta reached the wire")
-	}
-
-	_, body2 := e.get(t, "/api/coins/BTC?range=7d&currency=USD")
-	var second snapshot.Detail
-	json.Unmarshal([]byte(body2), &second)
-	if !second.FromCache {
-		t.Error("the second request should be served from cache")
-	}
-	if second.CreditsUsed != 0 {
-		t.Errorf("CreditsUsed = %d on a cache hit, want 0", second.CreditsUsed)
-	}
-}
-
 func TestStateServesEverySection(t *testing.T) {
 	e := newEnv(t, nil)
 	_, body := e.get(t, "/api/state")

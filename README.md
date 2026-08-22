@@ -7,6 +7,7 @@ frontend embedded, meant to sit open in a background browser tab all day.
   liquidity, and six percentage-change windows
 - Watchlist that works for coins outside the top 100
 - Market overview strip; clicking a coin opens its page on livecoinwatch.com
+- Pages through the whole ranking, one credit per block of 100
 - Refresh timer showing data age and time to the next update
 - Light, dark and auto themes; configurable locale; 24-hour clock throughout
 - Desktop alert notifications that fire even when no browser is open

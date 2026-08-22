@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/bartech/lcw-dashboard/internal/alerts"
-	"github.com/bartech/lcw-dashboard/internal/cache"
 	"github.com/bartech/lcw-dashboard/internal/clock"
 	"github.com/bartech/lcw-dashboard/internal/config"
 	"github.com/bartech/lcw-dashboard/internal/credits"
@@ -39,8 +38,6 @@ type Server struct {
 	engine  *alerts.Engine
 	assets  fs.FS
 	version string
-
-	detail *cache.LRU[*snapshot.Detail]
 }
 
 type Deps struct {
@@ -66,7 +63,6 @@ func New(d Deps) *Server {
 		ctrl: d.Ctrl, watch: d.Watch, index: d.Index, guard: d.Guard,
 		client: d.Client, hist: d.Hist, engine: d.Engine,
 		assets: d.Assets, version: d.Version,
-		detail: cache.NewLRU[*snapshot.Detail](d.Clk, d.Cfg.Cache.DetailTTL.D(), d.Cfg.Cache.DetailLRUSize),
 	}
 }
 
@@ -78,7 +74,6 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/config", s.handleConfig)
 	mux.HandleFunc("GET /api/search", s.handleSearch)
-	mux.HandleFunc("GET /api/coins/{code}", s.handleCoinDetail)
 	mux.HandleFunc("GET /api/watchlist", s.handleWatchlistGet)
 	mux.HandleFunc("GET /api/alerts", s.handleAlertsGet)
 	mux.HandleFunc("GET /api/upstream/status", s.handleUpstreamStatus)

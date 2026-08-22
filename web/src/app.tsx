@@ -5,8 +5,6 @@ import * as fmt from "./format";
 import * as prefs from "./prefs";
 import * as S from "./stream";
 import { ALL_COLUMNS, GROUP_LABELS, HIDE_BELOW, columnDef, type ColumnId, type Group } from "./columns";
-import { CoinDetail } from "./detail";
-import { route } from "./router";
 import { announce } from "./announce";
 import { Heart } from "./heart";
 
@@ -52,7 +50,6 @@ const pageCount = computed(() =>
 );
 
 export function App() {
-  const r = route.value;
   const [error, reset] = useErrorBoundary();
   useEffect(() => { installHotkeys(); }, []);
 
@@ -84,9 +81,7 @@ export function App() {
   return (
     <div class="app">
       <Header />
-      {r.name === "detail"
-        ? <CoinDetail code={r.code} />
-        : <Dashboard />}
+      <Dashboard />
     </div>
   );
 }
@@ -391,7 +386,8 @@ function FilterBar() {
 function setView(v: "top" | "favourites"): void {
   prefs.view.value = v;
   prefs.page.value = 1;
-  void S.control({ view: v });
+  prefs.offset.value = 0;
+  void S.control({ view: v, offset: 0 });
 }
 
 /**
@@ -477,6 +473,12 @@ function LayoutPopover() {
   const groups: Group[] = ["identity", "market", "change", "supply"];
   const order = prefs.columnOrder.value;
 
+  // Only enabled columns that the container query is currently hiding count.
+  const hiddenCount = order.filter((id) => {
+    const at = HIDE_BELOW[id];
+    return prefs.columnVisible.value[id] && at !== undefined && width < at;
+  }).length;
+
   return (
     <div class="pop" role="dialog" aria-label="Table layout">
       <h3>Density</h3>
@@ -561,10 +563,17 @@ function LayoutPopover() {
         <input
           type="checkbox"
           checked={prefs.showAllColumns.value}
+          disabled={hiddenCount === 0}
           onChange={() => { prefs.showAllColumns.value = !prefs.showAllColumns.value; }}
         />
-        Show all columns (allow horizontal scroll)
+        Show all columns, scrolling sideways
       </label>
+      <p class="hint">
+        {hiddenCount === 0
+          ? `Nothing is hidden at ${width}px, so this changes nothing right now.`
+          : `${hiddenCount} column${hiddenCount === 1 ? " is" : "s are"} hidden at ` +
+            `${width}px because they do not fit.`}
+      </p>
     </div>
   );
 }
@@ -725,31 +734,74 @@ function Cell({ id, coin }: { id: ColumnId; coin: CoinRow }) {
   return <td data-col={id} class={cls}>{def.text ? def.text(coin, ctx) : fmt.DASH}</td>;
 }
 
+/**
+ * Pagination walks the ranking, not just the loaded rows.
+ *
+ * The server fetches one block of `limit` coins at a time. Next moves within
+ * that block first, and only asks the server for the following block once you
+ * run off the end, so most page turns are free and only crossing a block
+ * boundary costs a credit. The favourites view has no offset: the whole
+ * watchlist arrives in one request.
+ */
 function Footer({ count }: { count: number }) {
-  const pages = pageCount.value;
+  const size = prefs.pageSize.value;
   const p = prefs.page.value;
+  const blockPages = Math.max(1, Math.ceil(count / size));
+  const favourites = prefs.view.value === "favourites";
+
+  const coins = S.coins.value;
+  const offset = coins?.offset ?? 0;
+  const limit = coins?.limit ?? S.serverConfig.value?.coinLimit ?? 100;
+  // A short block means the ranking ran out, so there is nothing after it.
+  const blockFull = count >= limit;
+
+  const canPrev = p > 1 || (!favourites && offset > 0);
+  const canNext = p < blockPages || (!favourites && blockFull);
+
+  const goPrev = () => {
+    if (p > 1) { prefs.page.value = p - 1; return; }
+    if (favourites || offset <= 0) return;
+    prefs.offset.value = Math.max(0, offset - limit);
+    prefs.page.value = Math.max(1, Math.ceil(limit / size));
+    S.pushSort();
+  };
+  const goNext = () => {
+    if (p < blockPages) { prefs.page.value = p + 1; return; }
+    if (favourites || !blockFull) return;
+    prefs.offset.value = offset + limit;
+    prefs.page.value = 1;
+    S.pushSort();
+  };
+
+  // Rank range is more useful than a page number when the block can move.
+  const from = offset + (p - 1) * size + 1;
+  const to = offset + Math.min(count, p * size);
+
   return (
     <div class="foot">
-      <button
-        type="button" class="chip" disabled={p <= 1}
-        onClick={() => { prefs.page.value = Math.max(1, p - 1); }}
-      >Previous</button>
-      <span>Page {p} of {pages} · {count} coins</span>
-      <button
-        type="button" class="chip" disabled={p >= pages}
-        onClick={() => { prefs.page.value = Math.min(pages, p + 1); }}
-      >Next</button>
+      <button type="button" class="chip" disabled={!canPrev} onClick={goPrev}>
+        Previous
+      </button>
+      <span>
+        {favourites
+          ? `${count} coin${count === 1 ? "" : "s"}`
+          : `${from} to ${to} by ${columnDef(prefs.sortCol.value).label}`}
+        {blockPages > 1 && `  ·  page ${p} of ${blockPages}`}
+      </span>
+      <button type="button" class="chip" disabled={!canNext} onClick={goNext}>
+        Next
+      </button>
       <div class="spacer" />
       <label>
         <span class="sr-only">Rows per page</span>
         <select
-          class="select" value={String(prefs.pageSize.value)}
+          class="select" value={String(size)}
           onChange={(e) => {
             prefs.pageSize.value = Number((e.target as HTMLSelectElement).value);
             prefs.page.value = 1;
           }}
         >
-          {prefs.PAGE_SIZES.map((n) => <option key={n} value={n}>{n} coins</option>)}
+          {prefs.PAGE_SIZES.map((n) => <option key={n} value={n}>{n} per page</option>)}
         </select>
       </label>
     </div>

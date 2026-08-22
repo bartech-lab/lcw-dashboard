@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/bartech/lcw-dashboard/internal/lcw"
@@ -20,11 +21,15 @@ type ViewKey struct {
 	// a cache entry.
 	Sort  lcw.SortField
 	Order lcw.SortOrder
+	// Offset pages through the ranking. Part of the key, because ranks 101-200
+	// are a different set of coins from 1-100.
+	Offset int
 }
 
 func (k ViewKey) String() string {
 	return string(k.View) + "|" + k.Currency + "|" + k.WatchHash +
-		"|" + string(k.Sort) + "|" + string(k.Order)
+		"|" + string(k.Sort) + "|" + string(k.Order) +
+		"|" + strconv.Itoa(k.Offset)
 }
 
 // Client is one browser tab, as the controller sees it.
@@ -34,6 +39,7 @@ type Client struct {
 	Currency string
 	Sort     lcw.SortField
 	Order    lcw.SortOrder
+	Offset   int
 	Visible  bool
 	LastSeen time.Time
 	// ActivatedAt breaks ties for which key gets priority.
@@ -51,21 +57,23 @@ func newPresence(ttl time.Duration) *presence {
 }
 
 func (p *presence) upsert(id string, view snapshot.View, currency string,
-	sort lcw.SortField, order lcw.SortOrder, visible bool, now time.Time) (changed bool) {
+	sort lcw.SortField, order lcw.SortOrder, offset int, visible bool,
+	now time.Time) (changed bool) {
 
 	c, ok := p.clients[id]
 	if !ok {
 		p.clients[id] = &Client{
 			ID: id, View: view, Currency: currency, Sort: sort, Order: order,
-			Visible: visible, LastSeen: now, ActivatedAt: now,
+			Offset: offset, Visible: visible, LastSeen: now, ActivatedAt: now,
 		}
 		return true
 	}
-	if c.View != view || c.Currency != currency || c.Sort != sort || c.Order != order {
+	if c.View != view || c.Currency != currency || c.Sort != sort ||
+		c.Order != order || c.Offset != offset {
 		c.ActivatedAt = now
 		changed = true
 	}
-	c.Sort, c.Order = sort, order
+	c.Sort, c.Order, c.Offset = sort, order, offset
 	if c.Visible != visible {
 		if visible {
 			c.ActivatedAt = now
@@ -129,7 +137,8 @@ func (p *presence) keysFor(watchHash string, max int, visibleOnly bool) []ViewKe
 		if visibleOnly && !c.Visible {
 			continue
 		}
-		k := ViewKey{View: c.View, Currency: c.Currency, Sort: c.Sort, Order: c.Order}
+		k := ViewKey{View: c.View, Currency: c.Currency, Sort: c.Sort,
+			Order: c.Order, Offset: c.Offset}
 		if c.View == snapshot.ViewFavourites {
 			k.WatchHash = watchHash
 		}

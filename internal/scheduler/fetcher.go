@@ -73,6 +73,7 @@ func (c *Controller) fetchCoins(ctx context.Context, key ViewKey) ([]snapshot.Co
 		Currency: key.Currency,
 		Sort:     sortField,
 		Order:    order,
+		Offset:   key.Offset,
 		Limit:    c.cfg.Coins.Limit,
 		Meta:     c.cfg.Coins.Meta,
 	})
@@ -218,6 +219,7 @@ func (c *Controller) handleResult(ctx context.Context, res result) {
 		View: res.key.View, Currency: res.key.Currency,
 		Sort: string(sortField), Order: string(order),
 		AsOf: now, AgeMs: 0, CreditsUsed: res.credits,
+		Offset: res.key.Offset, Limit: c.cfg.Coins.Limit,
 		Rotating:     len(c.rotation) > 1,
 		UnknownCodes: res.unknown,
 		Coins:        res.coins,
