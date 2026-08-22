@@ -111,8 +111,8 @@ search_index:
   coins: 2000
   page_size: 100
   refresh_at: "00:15"      # UTC, after the credit reset
-  build_delay: 5s
-  page_gap: 300ms
+  build_delay: 20s         # let the first table paint before the index walk
+  page_gap: 2500ms          # must be at least credits.min_request_gap
   max_results: 25
   min_score: 0.35
 

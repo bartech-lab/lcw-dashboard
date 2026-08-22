@@ -23,6 +23,9 @@ func (c *Controller) dispatchCoins(ctx context.Context, why string) bool {
 		c.resetCoinTimer()
 		return false
 	}
+	if why == "prime" && !c.lastCoinSuccess.IsZero() {
+		return false
+	}
 
 	key := c.activeKey()
 	cost := 1

@@ -274,6 +274,11 @@ func (c Config) Validate() error {
 		if c.SearchIndex.MinScore < 0 || c.SearchIndex.MinScore > 1 {
 			add("search_index.min_score must be in [0, 1], got %v", c.SearchIndex.MinScore)
 		}
+		if c.SearchIndex.PageGap.D() < gap {
+			add("search_index.page_gap (%s) is below credits.min_request_gap (%s); the "+
+				"index walks pages back to back and would be throttled on every one",
+				c.SearchIndex.PageGap, c.Credits.MinRequestGap)
+		}
 	}
 
 	// watchlist

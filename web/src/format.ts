@@ -175,6 +175,17 @@ export function age(fromIso: string | null, nowMs: number): string {
   return `${h}h ${m - h * 60}m`;
 }
 
+/**
+ * Live Coin Watch prefixes underscores to disambiguate duplicate tickers:
+ * Hyperliquid is "______HYPE" because "HYPE" is an older token. Their own site
+ * shows the trimmed form, and the coin name disambiguates, so this only affects
+ * display. Never send this to the API.
+ */
+export function displayCode(code: string): string {
+  const trimmed = code.replace(/^_+/, "");
+  return trimmed || code;
+}
+
 export function days(v: number, locale: string): string {
   if (!Number.isFinite(v) || v <= 0) return DASH;
   return count(v, locale) + "d";

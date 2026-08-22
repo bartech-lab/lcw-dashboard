@@ -100,6 +100,7 @@ const (
 	cmdWatchlistChanged
 	cmdReconciled
 	cmdIndexDone
+	cmdPrime
 )
 
 type command struct {
@@ -292,6 +293,13 @@ func (c *Controller) handleCommand(ctx context.Context, cmd command) {
 		c.resetCoinTimer()
 		c.publishStatus()
 		c.publishCredits()
+
+	case cmdPrime:
+		// Fetch once at startup regardless of the idle cadence, so the first
+		// browser to connect is painted immediately instead of waiting out a
+		// full interval.
+		c.dispatchCoins(ctx, "prime")
+		c.dispatchOverview(ctx)
 	}
 }
 
@@ -336,6 +344,13 @@ func (c *Controller) maybeFocusRefresh(ctx context.Context, changed bool) Refres
 }
 
 func (c *Controller) housekeep(ctx context.Context) {
+	// Retry the startup fetch until it lands. It competes with the search-index
+	// build for the rate limiter's slot, and losing once must not leave the first
+	// browser looking at an empty table for a whole idle interval.
+	if c.lastCoinSuccess.IsZero() && c.guard.State().Polls() {
+		c.dispatchCoins(ctx, "prime")
+	}
+
 	dropped := c.presence.expire(c.clk.Now())
 	if len(dropped) > 0 {
 		for _, id := range dropped {

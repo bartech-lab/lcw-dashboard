@@ -241,8 +241,14 @@ Worth knowing if you read the code:
   Nothing clamps it, the change columns are sized for it, and values above 1000%
   abbreviate to `+1.59k%`.
 - An exact `delta` of `0` means "no data", not −100%, so it renders as a dash.
-- `/coins/map` ignores rank entirely. That is why a coin at rank 731 costs the
-  same as Bitcoin and arrives in the same request as the rest of your watchlist.
+- `/coins/map` ignores rank entirely. Verified live: a coin at rank 736 arrives
+  in the same one-credit request as Bitcoin at rank 1.
+- **Duplicate tickers are disambiguated with leading underscores.** Hyperliquid
+  is `______HYPE`, because `HYPE` is a dead 2016 token at rank 32,152 with no
+  price at all. bittensor is `____TAO`; Solayer is `__LAYER`. Their own site
+  displays the trimmed form, and so does this dashboard, but the real code is
+  what goes to the API. **Add coins with the search box rather than typing a
+  ticker** — it resolves the actual code for you.
 - Codes the API does not recognise are omitted from the response rather than
   reported, so the dashboard diffs requested against returned and tells you.
 

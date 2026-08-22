@@ -42,6 +42,7 @@ func (c *Controller) Bootstrap(ctx context.Context) {
 
 	c.loadFiats(ctx)
 	c.send(command{kind: cmdReconciled})
+	c.send(command{kind: cmdPrime})
 }
 
 func (c *Controller) loadFiats(ctx context.Context) {
@@ -177,7 +178,25 @@ func (c *Controller) buildIndex(ctx context.Context) {
 	c.log.Info("building search index", "coins", c.cfg.SearchIndex.Coins, "credits", pages)
 
 	err := c.index.Build(ctx, func(ctx context.Context, offset, limit int) ([]lcw.Coin, error) {
-		if reason, ok := c.guard.Reserve(credits.KindIndex, 1, credits.SourcePoll); !ok {
+		// The index walks many pages in a row, so it can outrun the minimum
+		// request gap. Waiting is correct here: a refusal for pacing is not a
+		// reason to discard a whole rebuild.
+		var reason credits.Reason
+		var ok bool
+		for attempt := 0; attempt < indexReserveAttempts; attempt++ {
+			if reason, ok = c.guard.Reserve(credits.KindIndex, 1, credits.SourcePoll); ok {
+				break
+			}
+			if reason != credits.ReasonMinGap {
+				break
+			}
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(c.cfg.Credits.MinRequestGap.D() / 2):
+			}
+		}
+		if !ok {
 			return nil, &indexHalted{reason: string(reason)}
 		}
 		coins, err := c.client.CoinsList(ctx, lcw.CoinsListParams{
@@ -200,6 +219,10 @@ func (c *Controller) buildIndex(ctx context.Context) {
 	c.log.Info("search index ready", "coins", st.Coins)
 	c.send(command{kind: cmdIndexDone})
 }
+
+// indexReserveAttempts bounds the pacing wait, so a genuinely exhausted budget
+// still stops the build rather than looping.
+const indexReserveAttempts = 8
 
 type indexHalted struct{ reason string }
 

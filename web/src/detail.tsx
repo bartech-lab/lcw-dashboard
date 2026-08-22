@@ -46,7 +46,7 @@ export function CoinDetail({ code }: { code: string }) {
         <button type="button" class="chip" onClick={back}>← Back</button>
         {coin?.icons.png64 && <img src={coin.icons.png64} alt="" width="36" height="36" />}
         <h1 tabIndex={-1} ref={h1}>
-          {coin?.code ?? code}
+          {fmt.displayCode(coin?.code ?? code)}
           {coin?.name && <span class="coin-name"> {coin.name}</span>}
         </h1>
         {coin && coin.rank > 0 && <span class="chip">#{coin.rank}</span>}

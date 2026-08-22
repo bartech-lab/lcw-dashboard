@@ -266,7 +266,7 @@ function SearchBox() {
             <li key={r.code}>
               <button type="button" onClick={() => { void toggleWatch(r.code); setOpen(false); }}>
                 {r.png32 && <img src={r.png32} alt="" width="18" height="18" />}
-                <b>{r.code}</b>
+                <b>{fmt.displayCode(r.code)}</b>
                 <span class="coin-name">{r.name}</span>
                 <span class="rank">
                   {r.inWatchlist ? "on watchlist" : `#${r.rank}`}
@@ -629,7 +629,7 @@ function Cell({ id, coin }: { id: ColumnId; coin: CoinRow }) {
         <a class="coin" href={`#/coin/${coin.code}`}>
           <img src={coin.icons.png32 || coin.icons.png64} alt="" width="22" height="22" loading="lazy" />
           <span style={{ minWidth: 0 }}>
-            <span class="coin-code">{coin.code}</span>
+            <span class="coin-code">{fmt.displayCode(coin.code)}</span>
             <br />
             <span class="coin-name">{coin.name}</span>
           </span>

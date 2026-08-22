@@ -181,6 +181,10 @@ func newHarness(t *testing.T, tweak func(*config.Config)) *harness {
 		cancel()
 		<-h.done
 	})
+	// Wait for Run to create its timers. Advancing the fake clock before they
+	// exist finds nothing to fire, which would make any test that advances
+	// immediately silently observe nothing.
+	h.settle()
 	return h
 }
 
@@ -229,16 +233,27 @@ func TestNoClientsUsesTheSlowestInterval(t *testing.T) {
 	}
 }
 
-// Alerts are the only reason to poll for nobody, so without them it stops.
-func TestNoClientsAndNoAlertsStopsPolling(t *testing.T) {
+// Alerts are the only reason to keep polling for nobody, so without them the
+// recurring loop stops. The one-off startup prime still happens: one credit means
+// the first browser to connect is painted immediately instead of waiting out an
+// idle interval.
+func TestNoClientsAndNoAlertsStopsRecurringPolling(t *testing.T) {
 	h := newHarness(t, func(c *config.Config) { c.Alerts.Enabled = false })
-	h.settle()
 
-	before := h.up.count("/coins/list")
+	// Let the prime land.
+	h.clk.Advance(housekeeping)
+	h.settle()
+	h.clk.Advance(housekeeping)
+	h.settle()
+	primed := h.up.count("/coins/list")
+	if primed != 1 {
+		t.Fatalf("startup prime made %d requests, want exactly 1", primed)
+	}
+
 	h.clk.Advance(30 * time.Minute)
 	h.settle()
-	if after := h.up.count("/coins/list"); after > before {
-		t.Errorf("polled %d times with no clients and no alerts", after-before)
+	if after := h.up.count("/coins/list"); after != primed {
+		t.Errorf("made %d further requests with no clients and no alerts", after-primed)
 	}
 }
 
