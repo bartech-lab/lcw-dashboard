@@ -210,6 +210,13 @@ launchctl unload -w ~/Library/LaunchAgents/com.lcw-dashboard.plist
 
 On first run macOS will ask to allow notifications for `osascript`.
 
+### A second machine
+
+See [docs/second-machine.md](docs/second-machine.md). The short version: the
+10,000 daily credits belong to the **API key**, not the install, so two machines
+on one key at the default 15s interval spend ~12,300/day and will not fit. Either
+use a second key, or set `active_interval: 30s` on both.
+
 ### Opening it automatically
 
 Set `server.open_browser: true` to open a tab at startup. For an always-open tab,
