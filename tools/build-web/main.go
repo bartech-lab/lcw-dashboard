@@ -129,8 +129,8 @@ func run(dev bool) error {
 			status = "OVER BUDGET"
 			fail = true
 		}
-		fmt.Printf("%-12s %6.1f KB raw  %6.1f KB gz  (budget %.1f KB) %s\n",
-			name, kb(len(raw)), kb(size), kb(budget), status)
+		fmt.Printf("%-12s %6.1f KB raw  %6.1f KB gz  %3.0f%% of the %.0f KB budget  %s\n",
+			name, kb(len(raw)), kb(size), float64(size)/float64(budget)*100, kb(budget), status)
 	}
 	if fail {
 		return fmt.Errorf("gzip budget exceeded")

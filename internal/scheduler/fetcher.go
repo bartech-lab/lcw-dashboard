@@ -68,10 +68,11 @@ func (c *Controller) fetchCoins(ctx context.Context, key ViewKey) ([]snapshot.Co
 	if key.View == snapshot.ViewFavourites {
 		return c.fetchFavourites(ctx, key)
 	}
+	sortField, order := c.sortOf(key)
 	coins, err := c.client.CoinsList(ctx, lcw.CoinsListParams{
 		Currency: key.Currency,
-		Sort:     c.cfg.Coins.Sort,
-		Order:    c.cfg.Coins.Order,
+		Sort:     sortField,
+		Order:    order,
 		Limit:    c.cfg.Coins.Limit,
 		Meta:     c.cfg.Coins.Meta,
 	})
@@ -88,14 +89,15 @@ func (c *Controller) fetchFavourites(ctx context.Context, key ViewKey) ([]snapsh
 	if len(chunks) == 0 {
 		return []snapshot.CoinRow{}, nil, nil
 	}
+	sortField, order := c.sortOf(key)
 	var all []lcw.Coin
 	var requested []string
 	for _, chunk := range chunks {
 		got, err := c.client.CoinsMap(ctx, lcw.CoinsMapParams{
 			Codes:    chunk,
 			Currency: key.Currency,
-			Sort:     c.cfg.Coins.Sort,
-			Order:    c.cfg.Coins.Order,
+			Sort:     sortField,
+			Order:    order,
 			Meta:     c.cfg.Coins.Meta,
 		})
 		if err != nil {
@@ -112,6 +114,19 @@ func (c *Controller) fetchFavourites(ctx context.Context, key ViewKey) ([]snapsh
 	// difference is computed here and surfaced instead of silently vanishing.
 	unknown := c.watch.MarkUnknown(requested, returned)
 	return rows(all), unknown, nil
+}
+
+// sortOf falls back to the configured sort, so a client that sends nothing keeps
+// the canonical rank-ordered page.
+func (c *Controller) sortOf(key ViewKey) (lcw.SortField, lcw.SortOrder) {
+	sortField, order := key.Sort, key.Order
+	if !sortField.Valid() {
+		sortField = c.cfg.Coins.Sort
+	}
+	if !order.Valid() {
+		order = c.cfg.Coins.Order
+	}
+	return sortField, order
 }
 
 func rows(coins []lcw.Coin) []snapshot.CoinRow {
@@ -198,9 +213,10 @@ func (c *Controller) handleResult(ctx context.Context, res result) {
 	c.lastCoinSuccess = now
 	c.lastSuccessByKey[res.key.String()] = now
 
+	sortField, order := c.sortOf(res.key)
 	payload := &snapshot.Coins{
 		View: res.key.View, Currency: res.key.Currency,
-		Sort: string(c.cfg.Coins.Sort), Order: string(c.cfg.Coins.Order),
+		Sort: string(sortField), Order: string(order),
 		AsOf: now, AgeMs: 0, CreditsUsed: res.credits,
 		Rotating:     len(c.rotation) > 1,
 		UnknownCodes: res.unknown,
@@ -257,9 +273,10 @@ func neverReachedAPI(err error) bool {
 
 func (c *Controller) markCoinsStale(key ViewKey, err error, now time.Time) {
 	prev := c.world.Load().Coins[key.String()]
+	sortField, order := c.sortOf(key)
 	next := &snapshot.Coins{
 		View: key.View, Currency: key.Currency,
-		Sort: string(c.cfg.Coins.Sort), Order: string(c.cfg.Coins.Order),
+		Sort: string(sortField), Order: string(order),
 		Stale: true, StaleSince: c.staleSince, Error: wireError(err, now),
 		Rotating: len(c.rotation) > 1,
 		Coins:    []snapshot.CoinRow{},

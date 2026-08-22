@@ -161,6 +161,7 @@ func run() error {
 		Engine: engine, Index: index, Notify: fan,
 	})
 	ctrl.SetEnvPath(paths.EnvFile())
+	ctrl.SetFiatsPath(paths.Fiats())
 	restoreLastGood(log, cfg, paths, ctrl)
 
 	api := httpapi.New(httpapi.Deps{

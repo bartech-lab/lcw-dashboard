@@ -74,6 +74,7 @@ export function connect(): void {
     view: prefs.view.value,
     currency: prefs.currency.value,
     visible: document.hidden ? "0" : "1",
+    ...serverSort(),
   });
   es = new EventSource(`/api/stream?${params}`);
 
@@ -200,8 +201,23 @@ export interface ControlReply {
 /** pendingRevision marks values in flight until the server acknowledges. */
 export const pendingRevision = signal(0);
 
+/**
+ * The sort the server should apply. In page scope the server keeps the canonical
+ * rank-ordered page and the client sorts locally; in market scope the server
+ * fetches a genuinely market-wide page by that field.
+ */
+export function serverSort(): { sort: string; order: string } {
+  if (prefs.sortScope.value !== "market") {
+    return { sort: "rank", order: "ascending" };
+  }
+  const api = prefs.apiSortField();
+  if (!api) return { sort: "rank", order: "ascending" };
+  return { sort: api, order: prefs.sortDir.value === "asc" ? "ascending" : "descending" };
+}
+
 export async function control(patch: {
   visible?: boolean; view?: string; currency?: string;
+  sort?: string; order?: string;
 }): Promise<ControlReply | null> {
   try {
     const res = await fetch("/api/control", {
@@ -229,7 +245,14 @@ function postVisibility(visible: boolean): void {
   }
   // Always send the full state. Sending visibility alone once let the server
   // fall back to its configured default view and discard the user's choice.
-  void control({ visible, view: prefs.view.value, currency: prefs.currency.value });
+  void control({
+    visible, view: prefs.view.value, currency: prefs.currency.value, ...serverSort(),
+  });
+}
+
+/** Ask the server to change what it fetches, after a sort or scope change. */
+export function pushSort(): void {
+  void control({ view: prefs.view.value, currency: prefs.currency.value, ...serverSort() });
 }
 
 export async function refresh(what = "coins"): Promise<ControlReply | null> {

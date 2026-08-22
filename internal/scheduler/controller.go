@@ -57,8 +57,9 @@ type Controller struct {
 	revision         uint64
 	startedAt        time.Time
 
-	envPath string
-	fiats   *snapshot.Fiats
+	envPath   string
+	fiatsPath string
+	fiats     *snapshot.Fiats
 
 	coinTimer     clock.Timer
 	overviewTimer clock.Timer
@@ -114,10 +115,12 @@ type command struct {
 	clientID   string
 	view       snapshot.View
 	currency   string
+	sort       lcw.SortField
+	order      lcw.SortOrder
 	visible    bool
 	what       string
 	reply      chan RefreshReply
-	stateReply chan [2]string
+	stateReply chan [4]string
 }
 
 // RefreshReply tells the caller what the controller decided, so the UI can show
@@ -148,12 +151,14 @@ type result struct {
 	err     error
 }
 
-// Presence records a client heartbeat or visibility change.
-func (c *Controller) Presence(id string, view snapshot.View, currency string, visible bool) RefreshReply {
+// Presence records a client heartbeat, visibility change or view switch.
+func (c *Controller) Presence(id string, view snapshot.View, currency string,
+	sort lcw.SortField, order lcw.SortOrder, visible bool) RefreshReply {
+
 	reply := make(chan RefreshReply, 1)
 	c.send(command{
-		kind: cmdPresence, clientID: id, view: view,
-		currency: currency, visible: visible, reply: reply,
+		kind: cmdPresence, clientID: id, view: view, currency: currency,
+		sort: sort, order: order, visible: visible, reply: reply,
 	})
 	select {
 	case r := <-reply:
@@ -237,7 +242,8 @@ func (c *Controller) handleCommand(ctx context.Context, cmd command) {
 	switch cmd.kind {
 	case cmdPresence:
 		before := c.activeKey()
-		changed := c.presence.upsert(cmd.clientID, cmd.view, cmd.currency, cmd.visible, now)
+		changed := c.presence.upsert(cmd.clientID, cmd.view, cmd.currency,
+			cmd.sort, cmd.order, cmd.visible, now)
 		c.recomputeRotation()
 		// A view or currency switch is an explicit intent, not a wake-up to
 		// coalesce, so it must not be swallowed by the focus debounce.
@@ -310,9 +316,9 @@ func (c *Controller) handleCommand(ctx context.Context, cmd command) {
 		c.publishCredits()
 
 	case cmdClientState:
-		var out [2]string
+		var out [4]string
 		if cl, ok := c.presence.clients[cmd.clientID]; ok {
-			out = [2]string{string(cl.View), cl.Currency}
+			out = [4]string{string(cl.View), cl.Currency, string(cl.Sort), string(cl.Order)}
 		}
 		if cmd.stateReply != nil {
 			cmd.stateReply <- out
@@ -424,6 +430,8 @@ func (c *Controller) defaultKey() ViewKey {
 	k := ViewKey{
 		View:     snapshot.View(c.cfg.Coins.DefaultView),
 		Currency: c.cfg.Currency.Default,
+		Sort:     c.cfg.Coins.Sort,
+		Order:    c.cfg.Coins.Order,
 	}
 	if k.View == snapshot.ViewFavourites {
 		k.WatchHash = c.watch.Hash()
@@ -433,14 +441,16 @@ func (c *Controller) defaultKey() ViewKey {
 
 // ClientState reports what a client is currently on, so a partial control
 // message can patch rather than reset. Empty values mean the client is unknown.
-func (c *Controller) ClientState(clientID string) (snapshot.View, string) {
-	reply := make(chan [2]string, 1)
+func (c *Controller) ClientState(clientID string) (view snapshot.View,
+	currency string, sortField lcw.SortField, order lcw.SortOrder) {
+
+	reply := make(chan [4]string, 1)
 	c.send(command{kind: cmdClientState, clientID: clientID, stateReply: reply})
 	select {
 	case v := <-reply:
-		return snapshot.View(v[0]), v[1]
+		return snapshot.View(v[0]), v[1], lcw.SortField(v[2]), lcw.SortOrder(v[3])
 	case <-time.After(time.Second):
-		return "", ""
+		return "", "", "", ""
 	}
 }
 
@@ -450,7 +460,7 @@ func (c *Controller) keyFor(clientID string) ViewKey {
 	if !ok {
 		return c.activeKey()
 	}
-	k := ViewKey{View: cl.View, Currency: cl.Currency}
+	k := ViewKey{View: cl.View, Currency: cl.Currency, Sort: cl.Sort, Order: cl.Order}
 	if cl.View == snapshot.ViewFavourites {
 		k.WatchHash = c.watch.Hash()
 	}

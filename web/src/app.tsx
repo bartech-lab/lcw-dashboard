@@ -1,5 +1,5 @@
 import { computed } from "@preact/signals";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useErrorBoundary, useRef, useState } from "preact/hooks";
 import type { CoinRow, SearchResult, Status } from "./types";
 import * as fmt from "./format";
 import * as prefs from "./prefs";
@@ -53,7 +53,33 @@ const pageCount = computed(() =>
 
 export function App() {
   const r = route.value;
+  const [error, reset] = useErrorBoundary();
   useEffect(() => { installHotkeys(); }, []);
+
+  if (error) {
+    return (
+      <div class="app">
+        <Header />
+        <div class="banner" role="alert">
+          <strong>Something failed to render.</strong>
+          <span>
+            {String((error as Error)?.message ?? error)}
+            <br />
+            Stored view settings are the usual cause. Resetting them keeps your
+            watchlist, which lives on the server.
+            <br />
+            <button
+              type="button" class="chip"
+              onClick={() => { localStorage.removeItem("lcwd:prefs"); location.reload(); }}
+            >
+              Reset view settings and reload
+            </button>
+            <button type="button" class="chip" onClick={reset}>Try again</button>
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div class="app">
@@ -405,7 +431,7 @@ function SortScopeChip() {
     <span class="seg" role="radiogroup" aria-label="Sort scope">
       <button
         type="button" role="radio" aria-checked={scope === "page"}
-        onClick={() => { prefs.sortScope.value = "page"; }}
+        onClick={() => { prefs.sortScope.value = "page"; S.pushSort(); }}
         title="Sort the coins already loaded. Instant, no API credits."
       >
         This page
@@ -416,7 +442,7 @@ function SortScopeChip() {
         title={canMarket
           ? "Ask the server for a market-wide top list by this column (1 credit)."
           : "Live Coin Watch cannot sort by a percentage change, so market-wide sorting is unavailable for this column."}
-        onClick={() => { if (canMarket) prefs.sortScope.value = "market"; }}
+        onClick={() => { if (canMarket) { prefs.sortScope.value = "market"; S.pushSort(); } }}
       >
         Market
       </button>
@@ -445,10 +471,10 @@ function LayoutButton() {
   return (
     <div class="pop-anchor" ref={ref}>
       <button
-        type="button" class="chip" aria-expanded={open}
+        type="button" class="chip chip-icon" aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
-        Layout
+        <span aria-hidden="true">☰</span> Columns &amp; options
       </button>
       {open && <LayoutPopover />}
     </div>
@@ -628,6 +654,7 @@ function HeadCell({ id }: { id: ColumnId }) {
             }
             // Market scope cannot serve a column the API cannot sort by.
             if (!columnDef(prefs.sortCol.value).apiSort) prefs.sortScope.value = "page";
+            if (prefs.sortScope.value === "market") S.pushSort();
             announce(`Sorted by ${def.label}, ${prefs.sortDir.value === "asc" ? "ascending" : "descending"}`);
           }}
         >

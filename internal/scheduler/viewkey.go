@@ -4,6 +4,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/bartech/lcw-dashboard/internal/lcw"
 	"github.com/bartech/lcw-dashboard/internal/snapshot"
 )
 
@@ -14,10 +15,16 @@ type ViewKey struct {
 	View      snapshot.View
 	Currency  string
 	WatchHash string
+	// Sort and Order are part of the key: a market-wide page sorted by volume is
+	// a different set of coins from the rank-ordered page, so they must not share
+	// a cache entry.
+	Sort  lcw.SortField
+	Order lcw.SortOrder
 }
 
 func (k ViewKey) String() string {
-	return string(k.View) + "|" + k.Currency + "|" + k.WatchHash
+	return string(k.View) + "|" + k.Currency + "|" + k.WatchHash +
+		"|" + string(k.Sort) + "|" + string(k.Order)
 }
 
 // Client is one browser tab, as the controller sees it.
@@ -25,6 +32,8 @@ type Client struct {
 	ID       string
 	View     snapshot.View
 	Currency string
+	Sort     lcw.SortField
+	Order    lcw.SortOrder
 	Visible  bool
 	LastSeen time.Time
 	// ActivatedAt breaks ties for which key gets priority.
@@ -41,19 +50,22 @@ func newPresence(ttl time.Duration) *presence {
 	return &presence{clients: make(map[string]*Client), ttl: ttl}
 }
 
-func (p *presence) upsert(id string, view snapshot.View, currency string, visible bool, now time.Time) (changed bool) {
+func (p *presence) upsert(id string, view snapshot.View, currency string,
+	sort lcw.SortField, order lcw.SortOrder, visible bool, now time.Time) (changed bool) {
+
 	c, ok := p.clients[id]
 	if !ok {
 		p.clients[id] = &Client{
-			ID: id, View: view, Currency: currency, Visible: visible,
-			LastSeen: now, ActivatedAt: now,
+			ID: id, View: view, Currency: currency, Sort: sort, Order: order,
+			Visible: visible, LastSeen: now, ActivatedAt: now,
 		}
 		return true
 	}
-	if c.View != view || c.Currency != currency {
+	if c.View != view || c.Currency != currency || c.Sort != sort || c.Order != order {
 		c.ActivatedAt = now
 		changed = true
 	}
+	c.Sort, c.Order = sort, order
 	if c.Visible != visible {
 		if visible {
 			c.ActivatedAt = now
@@ -117,7 +129,7 @@ func (p *presence) keysFor(watchHash string, max int, visibleOnly bool) []ViewKe
 		if visibleOnly && !c.Visible {
 			continue
 		}
-		k := ViewKey{View: c.View, Currency: c.Currency}
+		k := ViewKey{View: c.View, Currency: c.Currency, Sort: c.Sort, Order: c.Order}
 		if c.View == snapshot.ViewFavourites {
 			k.WatchHash = watchHash
 		}

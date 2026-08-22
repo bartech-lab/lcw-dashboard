@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/bartech/lcw-dashboard/internal/store"
+
 	"github.com/bartech/lcw-dashboard/internal/credits"
 	"github.com/bartech/lcw-dashboard/internal/hub"
 	"github.com/bartech/lcw-dashboard/internal/lcw"
@@ -46,11 +48,21 @@ func (c *Controller) Bootstrap(ctx context.Context) {
 }
 
 func (c *Controller) loadFiats(ctx context.Context) {
+	// Disk first: the list changes rarely, so a restart should not cost a credit.
+	if c.fiats == nil && c.fiatsPath != "" {
+		var cached snapshot.Fiats
+		if found, err := store.ReadJSON(c.fiatsPath, &cached); err != nil {
+			c.log.Debug("fiat cache unreadable", "err", err)
+		} else if found && len(cached.Fiats) > 0 {
+			c.fiats = &cached
+		}
+	}
 	if c.fiats != nil && c.clk.Since(c.fiats.CachedAt) < c.cfg.Currency.FiatsTTL.D() {
 		if err := c.hub.Broadcast(hub.EventFiats, "", c.fiats); err != nil {
 			c.log.Warn("fiats broadcast failed", "err", err)
 		}
 		c.world.SetFiats(c.fiats)
+		c.log.Info("currencies available", "count", len(c.fiats.Fiats), "source", "cache")
 		return
 	}
 	if reason, ok := c.guard.Reserve(credits.KindFiats, 1, credits.SourceProbe); !ok {
@@ -95,7 +107,16 @@ func (c *Controller) SetFiats(list []lcw.Fiat) {
 	if err := c.hub.Broadcast(hub.EventFiats, "", f); err != nil {
 		c.log.Warn("fiats broadcast failed", "err", err)
 	}
+	if c.fiatsPath != "" {
+		if err := store.WriteJSONAtomic(c.fiatsPath, f); err != nil {
+			c.log.Warn("caching the fiat list failed", "err", err)
+		}
+	}
+	c.log.Info("currencies available", "count", len(out), "of", len(list))
 }
+
+// SetFiatsPath tells the controller where to cache the currency list.
+func (c *Controller) SetFiatsPath(p string) { c.fiatsPath = p }
 
 func (c *Controller) Fiats() *snapshot.Fiats { return c.fiats }
 

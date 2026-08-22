@@ -139,7 +139,17 @@ export function reconcile(p: Prefs): Prefs {
     sortScope: p.sortScope === "market" ? "market" : "page",
     pageSize: PAGE_SIZES.includes(p.pageSize) ? p.pageSize : d.pageSize,
     columns: { visible, order },
-    presets: Array.isArray(p.presets) ? p.presets.slice(0, 20) : [],
+    // Presets carry their own order arrays, so they need the same sanitising as
+    // the live one. A preset saved when a column still existed would otherwise
+    // reintroduce it and crash the render.
+    presets: Array.isArray(p.presets)
+      ? p.presets.slice(0, 20).map((preset) => {
+          const keep = (preset.order ?? []).filter((id) => known.has(id));
+          const vis: Partial<Record<ColumnId, boolean>> = {};
+          for (const id of keep) vis[id] = preset.visible?.[id] ?? columnDef(id).defaultVisible;
+          return { name: String(preset.name ?? "preset"), order: keep, visible: vis };
+        })
+      : [],
     watchlist: Array.isArray(p.watchlist)
       // Codes reach 45 characters: Live Coin Watch pads duplicated tickers with
       // underscores. A 16-char cap silently dropped them from the boot cache.
@@ -258,6 +268,11 @@ function applyTheme(): void {
 export function resolvedTheme(): "light" | "dark" {
   if (theme.value !== "auto") return theme.value;
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+/** The API sort field for the current sort column, or null if it has none. */
+export function apiSortField(): string | null {
+  return columnDef(sortCol.value).apiSort ?? null;
 }
 
 export function toggleColumn(id: ColumnId): void {

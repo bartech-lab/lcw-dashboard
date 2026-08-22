@@ -19,6 +19,9 @@ type controlRequest struct {
 	Visible  *bool   `json:"visible"`
 	View     *string `json:"view"`
 	Currency *string `json:"currency"`
+	// Sort and Order arrive only when the client asks for a market-wide page.
+	Sort  *string `json:"sort"`
+	Order *string `json:"order"`
 }
 
 // handleControl is the single client-to-server channel: visibility, view and
@@ -36,18 +39,42 @@ func (s *Server) handleControl(w http.ResponseWriter, r *http.Request) {
 	}
 	// Start from what the client already has, so a heartbeat that carries only
 	// visibility cannot discard the view the user chose.
-	view, currency := s.ctrl.ClientState(req.ClientID)
+	view, currency, sortField, order := s.ctrl.ClientState(req.ClientID)
 	if view == "" {
 		view = snapshot.View(s.cfg.Coins.DefaultView)
 	}
 	if currency == "" {
 		currency = s.cfg.Currency.Default
 	}
+	if !sortField.Valid() {
+		sortField = s.cfg.Coins.Sort
+	}
+	if !order.Valid() {
+		order = s.cfg.Coins.Order
+	}
 	if req.View != nil {
 		view = snapshot.View(*req.View)
 	}
 	if req.Currency != nil && *req.Currency != "" {
 		currency = *req.Currency
+	}
+	if req.Sort != nil {
+		next := lcw.SortField(*req.Sort)
+		if !next.Valid() {
+			// The API cannot sort by a percentage change, so this is the one
+			// place that has to say no rather than pass it through.
+			writeError(w, http.StatusBadRequest, "unsupported sort field", *req.Sort)
+			return
+		}
+		sortField = next
+	}
+	if req.Order != nil {
+		next := lcw.SortOrder(*req.Order)
+		if !next.Valid() {
+			writeError(w, http.StatusBadRequest, "unknown sort order", *req.Order)
+			return
+		}
+		order = next
 	}
 	if view != snapshot.ViewTop && view != snapshot.ViewFavourites {
 		writeError(w, http.StatusBadRequest, "unknown view", string(view))
@@ -63,8 +90,8 @@ func (s *Server) handleControl(w http.ResponseWriter, r *http.Request) {
 		visible = *req.Visible
 	}
 
-	s.hub.SetViewKey(req.ClientID, s.viewKey(view, currency))
-	reply := s.ctrl.Presence(req.ClientID, view, currency, visible)
+	s.hub.SetViewKey(req.ClientID, s.viewKey(view, currency, sortField, order))
+	reply := s.ctrl.Presence(req.ClientID, view, currency, sortField, order, visible)
 	writeJSON(w, http.StatusOK, reply)
 }
 

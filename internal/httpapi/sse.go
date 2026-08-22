@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/bartech/lcw-dashboard/internal/hub"
+	"github.com/bartech/lcw-dashboard/internal/lcw"
 	"github.com/bartech/lcw-dashboard/internal/snapshot"
 )
 
@@ -16,9 +17,19 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "client_id required", "")
 		return
 	}
-	view := snapshot.View(orDefault(r.URL.Query().Get("view"), s.cfg.Coins.DefaultView))
-	currency := orDefault(r.URL.Query().Get("currency"), s.cfg.Currency.Default)
-	visible := r.URL.Query().Get("visible") != "0"
+	q := r.URL.Query()
+	view := snapshot.View(orDefault(q.Get("view"), s.cfg.Coins.DefaultView))
+	currency := orDefault(q.Get("currency"), s.cfg.Currency.Default)
+	visible := q.Get("visible") != "0"
+
+	sortField := lcw.SortField(orDefault(q.Get("sort"), string(s.cfg.Coins.Sort)))
+	if !sortField.Valid() {
+		sortField = s.cfg.Coins.Sort
+	}
+	order := lcw.SortOrder(orDefault(q.Get("order"), string(s.cfg.Coins.Order)))
+	if !order.Valid() {
+		order = s.cfg.Coins.Order
+	}
 
 	rc := http.NewResponseController(w)
 	w.Header().Set("content-type", "text/event-stream")
@@ -31,11 +42,11 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key := s.viewKey(view, currency)
+	key := s.viewKey(view, currency, sortField, order)
 	events, replay := s.hub.Register(clientID, key)
 	defer s.hub.Unregister(clientID)
 
-	s.ctrl.Presence(clientID, view, currency, visible)
+	s.ctrl.Presence(clientID, view, currency, sortField, order, visible)
 	defer s.ctrl.Disconnect(clientID)
 
 	// hello is written directly rather than queued, so it always precedes the
@@ -97,12 +108,17 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) viewKey(view snapshot.View, currency string) string {
+// viewKey must match scheduler.ViewKey.String exactly, or a client subscribes to
+// a key the controller never publishes.
+func (s *Server) viewKey(view snapshot.View, currency string,
+	sortField lcw.SortField, order lcw.SortOrder) string {
+
 	hash := ""
 	if view == snapshot.ViewFavourites {
 		hash = s.watch.Hash()
 	}
-	return string(view) + "|" + currency + "|" + hash
+	return string(view) + "|" + currency + "|" + hash +
+		"|" + string(sortField) + "|" + string(order)
 }
 
 func lastEventID(r *http.Request) uint64 {

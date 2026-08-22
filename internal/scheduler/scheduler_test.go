@@ -198,7 +198,7 @@ func (h *harness) status() *snapshot.Status { return h.world.Load().Status }
 func TestVisibleClientGetsTheActiveInterval(t *testing.T) {
 	h := newHarness(t, nil)
 
-	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", true)
+	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 
 	if got := h.status().IntervalMs; got != 15000 {
@@ -212,9 +212,9 @@ func TestVisibleClientGetsTheActiveInterval(t *testing.T) {
 func TestHiddenTabDropsToTheIdleInterval(t *testing.T) {
 	h := newHarness(t, nil)
 
-	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", true)
+	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
-	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", false)
+	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, false)
 	h.settle()
 
 	if got := h.status().IntervalMs; got != 120000 {
@@ -261,15 +261,15 @@ func TestNoClientsAndNoAlertsStopsRecurringPolling(t *testing.T) {
 func TestFocusRefreshFiresWhenDataIsStale(t *testing.T) {
 	h := newHarness(t, nil)
 
-	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", true)
+	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 	first := h.up.count("/coins/list")
 
 	// Go hidden, let data age past the threshold, come back.
-	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", false)
+	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, false)
 	h.settle()
 	h.clk.Advance(time.Minute)
-	reply := h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", true)
+	reply := h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 
 	if !reply.Accepted {
@@ -283,12 +283,12 @@ func TestFocusRefreshFiresWhenDataIsStale(t *testing.T) {
 func TestFocusRefreshIsSkippedWhenDataIsFresh(t *testing.T) {
 	h := newHarness(t, nil)
 
-	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", true)
+	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 	h.clk.Advance(2 * time.Second)
 
 	before := h.up.count("/coins/list")
-	reply := h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", true)
+	reply := h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 
 	if reply.Accepted {
@@ -304,13 +304,15 @@ func TestSimultaneousFocusIsCoalescedToOneFetch(t *testing.T) {
 	h := newHarness(t, nil)
 
 	for i := 0; i < 8; i++ {
-		h.ctrl.Presence(fmt.Sprintf("tab%d", i), snapshot.ViewTop, "USD", false)
+		h.ctrl.Presence(fmt.Sprintf("tab%d", i), snapshot.ViewTop, "USD",
+			lcw.SortRank, lcw.OrderAscending, false)
 	}
 	h.settle()
 	before := h.up.count("/coins/list")
 
 	for i := 0; i < 8; i++ {
-		h.ctrl.Presence(fmt.Sprintf("tab%d", i), snapshot.ViewTop, "USD", true)
+		h.ctrl.Presence(fmt.Sprintf("tab%d", i), snapshot.ViewTop, "USD",
+			lcw.SortRank, lcw.OrderAscending, true)
 	}
 	h.settle()
 
@@ -322,7 +324,7 @@ func TestSimultaneousFocusIsCoalescedToOneFetch(t *testing.T) {
 // The in-flight flag is the whole double-fire defence.
 func TestTickDuringAFetchIsDroppedNotQueued(t *testing.T) {
 	h := newHarness(t, nil)
-	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", true)
+	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 
 	before := h.up.count("/coins/list")
@@ -345,7 +347,7 @@ func TestFavouritesUsesCoinsMapAndCostsOneCredit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h.ctrl.Presence("tab1", snapshot.ViewFavourites, "USD", true)
+	h.ctrl.Presence("tab1", snapshot.ViewFavourites, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 
 	if got := h.up.count("/coins/map"); got != 1 {
@@ -371,7 +373,7 @@ func TestChunkedWatchlistHoldsTheCreditRate(t *testing.T) {
 	if _, err := h.watch.Set(codes); err != nil {
 		t.Fatal(err)
 	}
-	h.ctrl.Presence("tab1", snapshot.ViewFavourites, "USD", true)
+	h.ctrl.Presence("tab1", snapshot.ViewFavourites, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 
 	if got := h.watch.ChunkCount(); got != 2 {
@@ -392,8 +394,8 @@ func TestChunkedWatchlistHoldsTheCreditRate(t *testing.T) {
 func TestRotationDividesTheRateRatherThanMultiplyingSpend(t *testing.T) {
 	h := newHarness(t, nil)
 
-	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", true)
-	h.ctrl.Presence("tab2", snapshot.ViewTop, "EUR", true)
+	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
+	h.ctrl.Presence("tab2", snapshot.ViewTop, "EUR", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 
 	st := h.status()
@@ -411,9 +413,9 @@ func TestRotationDividesTheRateRatherThanMultiplyingSpend(t *testing.T) {
 func TestRotationIsCappedByConfig(t *testing.T) {
 	h := newHarness(t, func(c *config.Config) { c.Poll.MaxRotationKeys = 2 })
 
-	h.ctrl.Presence("a", snapshot.ViewTop, "USD", true)
-	h.ctrl.Presence("b", snapshot.ViewTop, "EUR", true)
-	h.ctrl.Presence("c", snapshot.ViewTop, "PLN", true)
+	h.ctrl.Presence("a", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
+	h.ctrl.Presence("b", snapshot.ViewTop, "EUR", lcw.SortRank, lcw.OrderAscending, true)
+	h.ctrl.Presence("c", snapshot.ViewTop, "PLN", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 
 	if got := len(h.status().RotationKeys); got != 2 {
@@ -426,7 +428,7 @@ func TestRotationIsCappedByConfig(t *testing.T) {
 func TestStaleClientsExpire(t *testing.T) {
 	h := newHarness(t, nil)
 
-	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", true)
+	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 	if got := h.status().TotalClients; got != 1 {
 		t.Fatalf("TotalClients = %d, want 1", got)
@@ -445,7 +447,7 @@ func TestStaleClientsExpire(t *testing.T) {
 
 func TestDisconnectRemovesAClient(t *testing.T) {
 	h := newHarness(t, nil)
-	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", true)
+	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 
 	h.ctrl.Disconnect("tab1")
@@ -460,7 +462,7 @@ func TestDisconnectRemovesAClient(t *testing.T) {
 func TestFailureKeepsTheLastGoodTable(t *testing.T) {
 	h := newHarness(t, nil)
 
-	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", true)
+	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 
 	key := h.status().ActiveViewKey
@@ -493,7 +495,7 @@ func TestFailureKeepsTheLastGoodTable(t *testing.T) {
 
 func TestDeltaReachesTheWireAsPercent(t *testing.T) {
 	h := newHarness(t, nil)
-	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", true)
+	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 
 	coins := h.world.Load().Coins[h.status().ActiveViewKey]
@@ -534,7 +536,7 @@ func TestUnknownWatchlistCodesAreReported(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h.ctrl.Presence("tab1", snapshot.ViewFavourites, "USD", true)
+	h.ctrl.Presence("tab1", snapshot.ViewFavourites, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 
 	coins := h.world.Load().Coins[h.status().ActiveViewKey]
@@ -554,7 +556,7 @@ func TestUnknownWatchlistCodesAreReported(t *testing.T) {
 
 func TestExhaustedBudgetStopsPollingButKeepsServing(t *testing.T) {
 	h := newHarness(t, nil)
-	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", true)
+	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 
 	h.guard.AdoptExhausted()
@@ -592,7 +594,7 @@ func TestNoKeyProducesASetupHint(t *testing.T) {
 
 func TestWatchlistChangeRefetchesOnlyTheFavouritesView(t *testing.T) {
 	h := newHarness(t, nil)
-	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", true)
+	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 
 	before := h.up.total()
@@ -608,7 +610,7 @@ func TestWatchlistChangeRefetchesOnlyTheFavouritesView(t *testing.T) {
 
 func TestManualRefreshIsDebounced(t *testing.T) {
 	h := newHarness(t, nil)
-	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", true)
+	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 
 	// Let the scheduled tick complete first, so this measures the debounce and
@@ -634,7 +636,7 @@ func TestManualRefreshIsDebounced(t *testing.T) {
 
 func TestOverviewUsesItsOwnSlowerTimer(t *testing.T) {
 	h := newHarness(t, func(c *config.Config) { c.Overview.Enabled = true })
-	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", true)
+	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 
 	// Five minutes is one overview interval but twenty coin intervals.
@@ -770,13 +772,13 @@ func TestFiatDenylistRemovesACurrency(t *testing.T) {
 func TestHiddenClientKeepsItsView(t *testing.T) {
 	h := newHarness(t, nil)
 
-	h.ctrl.Presence("tab1", snapshot.ViewFavourites, "USD", true)
+	h.ctrl.Presence("tab1", snapshot.ViewFavourites, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 	if got := h.status().ActiveViewKey; !strings.HasPrefix(got, "favourites|") {
 		t.Fatalf("visible: ActiveViewKey = %q, want favourites", got)
 	}
 
-	h.ctrl.Presence("tab1", snapshot.ViewFavourites, "USD", false)
+	h.ctrl.Presence("tab1", snapshot.ViewFavourites, "USD", lcw.SortRank, lcw.OrderAscending, false)
 	h.settle()
 	if got := h.status().ActiveViewKey; !strings.HasPrefix(got, "favourites|") {
 		t.Errorf("hidden: ActiveViewKey = %q, want favourites to be kept", got)
@@ -794,7 +796,7 @@ func TestHiddenClientKeepsItsView(t *testing.T) {
 func TestPresenceReplyReportsTheRequestedView(t *testing.T) {
 	h := newHarness(t, nil)
 
-	reply := h.ctrl.Presence("tab1", snapshot.ViewFavourites, "USD", false)
+	reply := h.ctrl.Presence("tab1", snapshot.ViewFavourites, "USD", lcw.SortRank, lcw.OrderAscending, false)
 	if !strings.HasPrefix(reply.ViewKey, "favourites|") {
 		t.Errorf("ViewKey = %q; a hidden favourites client was told it is on top",
 			reply.ViewKey)
@@ -806,12 +808,12 @@ func TestPresenceReplyReportsTheRequestedView(t *testing.T) {
 func TestFreshnessIsPerViewKey(t *testing.T) {
 	h := newHarness(t, nil)
 
-	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", true)
+	h.ctrl.Presence("tab1", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 	before := h.up.count("/coins/map")
 
 	// Switch to favourites immediately, while the top fetch is seconds old.
-	h.ctrl.Presence("tab1", snapshot.ViewFavourites, "USD", true)
+	h.ctrl.Presence("tab1", snapshot.ViewFavourites, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 
 	if got := h.up.count("/coins/map"); got <= before {
@@ -824,11 +826,11 @@ func TestFreshnessIsPerViewKey(t *testing.T) {
 func TestReplyReportsTheCallersOwnKeyNotTheRotationHead(t *testing.T) {
 	h := newHarness(t, nil)
 
-	h.ctrl.Presence("topTab", snapshot.ViewTop, "USD", true)
+	h.ctrl.Presence("topTab", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
-	favReply := h.ctrl.Presence("favTab", snapshot.ViewFavourites, "USD", true)
+	favReply := h.ctrl.Presence("favTab", snapshot.ViewFavourites, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
-	topReply := h.ctrl.Presence("topTab", snapshot.ViewTop, "USD", true)
+	topReply := h.ctrl.Presence("topTab", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
 	h.settle()
 
 	if !strings.HasPrefix(favReply.ViewKey, "favourites|") {
@@ -836,5 +838,41 @@ func TestReplyReportsTheCallersOwnKeyNotTheRotationHead(t *testing.T) {
 	}
 	if !strings.HasPrefix(topReply.ViewKey, "top|") {
 		t.Errorf("top tab was told %q", topReply.ViewKey)
+	}
+}
+
+// Market scope has to change what the server asks for, or the control does
+// nothing but stop the client sorting locally.
+func TestMarketSortChangesTheUpstreamRequest(t *testing.T) {
+	h := newHarness(t, nil)
+
+	h.ctrl.Presence("tab", snapshot.ViewTop, "USD", lcw.SortRank, lcw.OrderAscending, true)
+	h.settle()
+
+	h.ctrl.Presence("tab", snapshot.ViewTop, "USD", lcw.SortVolume, lcw.OrderDescending, true)
+	h.settle()
+
+	h.up.mu.Lock()
+	bodies := append([]map[string]any(nil), h.up.bodies["/coins/list"]...)
+	h.up.mu.Unlock()
+
+	var sawVolume bool
+	for _, b := range bodies {
+		if b["sort"] == "volume" && b["order"] == "descending" {
+			sawVolume = true
+		}
+	}
+	if !sawVolume {
+		t.Errorf("no request used sort=volume; bodies were %+v", bodies)
+	}
+}
+
+// A sort change is a different set of coins, so it must not reuse the cached
+// rank-ordered page.
+func TestSortIsPartOfTheViewKey(t *testing.T) {
+	a := ViewKey{View: snapshot.ViewTop, Currency: "USD", Sort: lcw.SortRank, Order: lcw.OrderAscending}
+	b := ViewKey{View: snapshot.ViewTop, Currency: "USD", Sort: lcw.SortVolume, Order: lcw.OrderDescending}
+	if a.String() == b.String() {
+		t.Errorf("two different sorts share the key %q", a.String())
 	}
 }

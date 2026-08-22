@@ -57,13 +57,20 @@ func (w *World) clone() *World {
 	return n
 }
 
-// Update applies mutate to a copy and publishes it. Only the controller
-// goroutine calls this, so no compare-and-swap loop is needed.
+// Update applies mutate to a copy and publishes it.
+//
+// The compare-and-swap loop is required: bootstrap and the on-demand handlers
+// publish from their own goroutines, so a plain load-clone-store silently loses
+// whichever write landed second. That is how the fiat list kept disappearing.
 func (h *Holder) Update(mutate func(*World)) *World {
-	next := h.p.Load().clone()
-	mutate(next)
-	h.p.Store(next)
-	return next
+	for {
+		cur := h.p.Load()
+		next := cur.clone()
+		mutate(next)
+		if h.p.CompareAndSwap(cur, next) {
+			return next
+		}
+	}
 }
 
 func (h *Holder) SetCoins(key string, c *Coins) *World {
