@@ -17,3 +17,6 @@ node_modules/
 # editor / OS
 .DS_Store
 *.swp
+
+# harness-local permissions
+.claude/settings.local.json

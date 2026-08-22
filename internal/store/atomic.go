@@ -9,28 +9,20 @@ import (
 	"path/filepath"
 )
 
-// SchemaVersion is stamped into every file this package writes. A file carrying
-// a higher version was written by a newer binary; readers ignore it rather than
-// misinterpreting it.
 const SchemaVersion = 1
 
-// envelope wraps persisted data so the version travels with it.
 type envelope struct {
 	SchemaVersion int             `json:"schemaVersion"`
 	Data          json.RawMessage `json:"data"`
 }
 
-// ErrSchemaTooNew reports a file written by a newer binary. Callers treat this
-// as "start from defaults", never as a fatal error — a rolled-back binary must
-// still start.
+// ErrSchemaTooNew means a newer binary wrote the file. Callers start from
+// defaults; a rolled-back binary must still run.
 var ErrSchemaTooNew = errors.New("file schema is newer than this binary understands")
 
-// WriteJSONAtomic writes v to path so that a crash can never leave a truncated
-// file. It writes a sibling temp file, fsyncs it, renames over the target, then
-// fsyncs the directory so the rename itself is durable.
-//
-// Skipping the directory fsync is the common mistake: the rename can otherwise
-// be lost on power failure even though the data was synced.
+// WriteJSONAtomic writes via temp file, fsync, rename, then fsyncs the
+// directory. The directory fsync is the commonly skipped part: without it the
+// rename can be lost on power failure even though the data was synced.
 func WriteJSONAtomic(path string, v any) error {
 	data, err := json.Marshal(v)
 	if err != nil {
@@ -47,7 +39,6 @@ func WriteJSONAtomic(path string, v any) error {
 		return fmt.Errorf("create temp for %s: %w", path, err)
 	}
 	tmpName := tmp.Name()
-	// Any failure past this point must not leave the temp file behind.
 	defer os.Remove(tmpName)
 
 	if err := tmp.Chmod(0o600); err != nil {
@@ -83,11 +74,8 @@ func syncDir(dir string) error {
 	return nil
 }
 
-// ReadJSON loads path into v.
-//
-// A missing file returns (false, nil): "nothing persisted yet" is the normal
-// first-run case, not an error. A present-but-unreadable file returns an error
-// and is quarantined by the caller via Quarantine.
+// ReadJSON returns (false, nil) for a missing file: nothing persisted yet is the
+// normal first run, not an error.
 func ReadJSON(path string, v any) (found bool, err error) {
 	raw, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -114,9 +102,8 @@ func ReadJSON(path string, v any) (found bool, err error) {
 	return true, nil
 }
 
-// Quarantine renames a file the reader could not understand, so the next start
-// begins from defaults without silently destroying whatever was there. Losing
-// state must never be silent, and it must never be fatal either.
+// Quarantine moves aside a file the reader could not understand. Losing state
+// must be neither silent nor fatal.
 func Quarantine(path string) (newPath string, err error) {
 	newPath = path + ".corrupt"
 	if err := os.Rename(path, newPath); err != nil {

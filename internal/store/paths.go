@@ -1,15 +1,8 @@
 // Package store resolves on-disk locations and writes JSON atomically.
 //
-// Nothing the running program produces belongs in the source repository, so
-// every path here resolves outside it. Config, state and cache are kept
-// separate on purpose:
-//
-//	config — user-edited input
-//	state  — losing it changes behaviour (credit ledger, alert arming, watchlist)
-//	cache  — merely re-derivable at credit cost; deleting it must be harmless
-//
-// macOS uses the same XDG variables and the same ~/.local fallbacks as Linux, so
-// both platforms behave identically and a config directory can be synced.
+// Nothing the running program produces belongs in the source repository. State
+// is what changes behaviour if lost (credit ledger, alert arming, watchlist);
+// cache is re-derivable at credit cost, so deleting it must be harmless.
 package store
 
 import (
@@ -20,14 +13,12 @@ import (
 
 const appName = "lcw-dashboard"
 
-// Paths holds every resolved directory and the files inside them.
 type Paths struct {
 	ConfigDir string
 	StateDir  string
 	CacheDir  string
 }
 
-// Resolve computes the three base directories. It performs no I/O.
 func Resolve() (Paths, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -40,10 +31,8 @@ func Resolve() (Paths, error) {
 	}, nil
 }
 
-// envOr returns the environment variable if it is set to an absolute path.
-// A relative value is ignored: the XDG spec requires absolute paths, and
-// honouring a relative one would scatter state relative to the working
-// directory, which for this program is usually the source repository.
+// envOr ignores a relative value: honouring one would scatter state relative to
+// the working directory, which is usually the source repository.
 func envOr(key, fallback string) string {
 	if v := os.Getenv(key); filepath.IsAbs(v) {
 		return v
@@ -51,8 +40,6 @@ func envOr(key, fallback string) string {
 	return fallback
 }
 
-// EnsureDirs creates every directory, including the history subdirectory.
-// Directories are 0700: the config directory holds the API key.
 func (p Paths) EnsureDirs() error {
 	for _, d := range []string{p.ConfigDir, p.StateDir, p.CacheDir, p.HistoryDir()} {
 		if err := os.MkdirAll(d, 0o700); err != nil {
@@ -73,15 +60,8 @@ func (p Paths) HistoryDir() string  { return filepath.Join(p.StateDir, "history"
 func (p Paths) SearchIndex() string { return filepath.Join(p.CacheDir, "search-index.json") }
 func (p Paths) Fiats() string       { return filepath.Join(p.CacheDir, "fiats.json") }
 
-// HistoryFile returns the ring-buffer path for a coin code.
-//
-// A coin code arrives from the API, so it is untrusted input that becomes a
-// filename. This validates against a positive allowlist rather than trying to
-// reject bad shapes: a "not equal to filepath.Base" check accepts "." and "..",
-// and enumerating traversal tricks is a losing game.
-//
-// A code outside the allowlist is an error, not a panic. The caller skips
-// history for that coin and keeps serving it in the table.
+// HistoryFile validates against an allowlist rather than rejecting bad shapes:
+// a "not equal to filepath.Base" check accepts "." and "..".
 func (p Paths) HistoryFile(code string) (string, error) {
 	if !safeCodeForFilename(code) {
 		return "", fmt.Errorf("coin code is not safe as a filename: %q", code)
@@ -89,8 +69,6 @@ func (p Paths) HistoryFile(code string) (string, error) {
 	return filepath.Join(p.HistoryDir(), code+".ring"), nil
 }
 
-// maxCodeLen bounds the filename. Real codes are a handful of characters; a
-// pathological one should not produce a 4KB path.
 const maxCodeLen = 32
 
 func safeCodeForFilename(code string) bool {
@@ -103,7 +81,6 @@ func safeCodeForFilename(code string) bool {
 		case r >= 'A' && r <= 'Z', r >= 'a' && r <= 'z', r >= '0' && r <= '9':
 			alnum = true
 		case r == '_' || r == '-':
-			// Allowed, but cannot be the whole code.
 		default:
 			return false
 		}

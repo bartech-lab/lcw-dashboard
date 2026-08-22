@@ -1,0 +1,166 @@
+# lcw-dashboard configuration. Every key below is optional; the value shown is
+# the default. Copy to $XDG_CONFIG_HOME/lcw-dashboard/config.yaml and edit.
+#
+# The API key does NOT go here. Put it in .env as LCW_API_KEY.
+#
+# Credit budget: the free tier allows 10,000 requests per day, reset at UTC
+# midnight. The defaults below project to ~6,164/day with a tab visible all day
+# (5,760 coins + 288 overview + 20 index + 96 reconcile). The binary logs this
+# projection at startup and warns if it exceeds credits.daily_ceiling.
+
+server:
+  listen: "127.0.0.1:8787"
+  read_timeout: 10s
+  shutdown_timeout: 5s
+  open_browser: false
+  # The dashboard has no authentication. Binding a non-loopback address
+  # requires setting this true.
+  allow_non_loopback: false
+
+log:
+  level: info          # debug|info|warn|error
+  format: text         # text|json
+  http_requests: false
+
+api:
+  base_url: "https://api.livecoinwatch.com"
+  timeout: 15s
+  user_agent: "lcw-dashboard"
+
+poll:
+  # Used while at least one tab reports itself visible. 10s works but projects
+  # to 8,640/day for the coin loop alone; check the startup warning.
+  active_interval: 15s
+  idle_interval_hidden: 120s
+  # With no browser connected. Polling then only feeds alert rules; 0 stops it.
+  idle_interval_no_clients: 300s
+  critical_interval: 600s
+  # A tab regaining focus refetches only if data is older than this.
+  focus_refresh_threshold: 10s
+  # Coalesces several tabs waking at once into one fetch.
+  focus_debounce: 2s
+  presence_heartbeat: 20s
+  presence_ttl: 45s
+  # Distinct view/currency combinations kept fresh. Each extra key divides the
+  # refresh rate rather than multiplying credit spend.
+  max_rotation_keys: 3
+  sse_heartbeat: 15s
+
+coins:
+  default_view: top        # top|favourites
+  limit: 100               # the API maximum
+  sort: rank               # rank|price|volume|code|name|age — no delta windows
+  order: ascending
+  meta: true
+  watchlist_max: 300
+  chunk_size: 100
+
+overview:
+  enabled: true
+  # Total market cap does not need the coin interval. At 60s this alone costs
+  # 1,440 credits/day, more than the entire idle coin loop.
+  interval: 300s
+  hidden_interval: 900s
+  history_enabled: false
+
+currency:
+  default: USD
+  # Empty offers every fiat the API returns. List codes to trim the picker.
+  allowlist: []
+  denylist: []
+  fiats_ttl: 720h
+
+credits:
+  daily_ceiling: 9000
+  api_daily_limit: 10000
+  conserve_at: 0.80
+  conserve_recover_at: 0.75
+  critical_at: 0.95
+  critical_recover_at: 0.90
+  reconcile_interval: 15m
+  # Hard floor below the scheduler; the last defence against a runaway loop.
+  min_request_gap: 2s
+  burst: 20
+  # Held back so clicking into a coin still works late in the day.
+  reserve_for_ondemand: 300
+
+cache:
+  detail_ttl: 15m
+  history_ttl_short: 30m
+  history_ttl_long: 6h
+  detail_lru_size: 200
+  persist_last_good: true
+
+history:
+  # Records what the poll loop already receives, so it costs no credits.
+  # Each tier is a preallocated ring buffer: the file reaches its size and stays
+  # there. Defaults are 13,080 slots x 16 bytes = 204 KB per coin,
+  # ~49 MB for 250 coins, constant.
+  enabled: true
+  tiers:
+    - {resolution: 1m,  retention: 24h}
+    - {resolution: 15m, retention: 720h}
+    - {resolution: 1h,  retention: 8760h}
+  max_coins: 250
+  flush_interval: 60s
+
+search_index:
+  # There is no search endpoint, so the index is built by walking /coins/list.
+  # 2000 coins in pages of 100 costs 20 credits per rebuild.
+  enabled: true
+  coins: 2000
+  page_size: 100
+  refresh_at: "00:15"      # UTC, after the credit reset
+  build_delay: 5s
+  page_gap: 300ms
+  max_results: 25
+  min_score: 0.35
+
+watchlist:
+  # server is authoritative: the server needs the list to build /coins/map, and
+  # watchlist alerts must fire with no browser open.
+  source: server
+  initial: [BTC, ETH, SOL]
+
+alerts:
+  enabled: true
+  # native = D-Bus on Linux, osascript on macOS. browser alone is unreliable:
+  # Chrome freezes idle background tabs.
+  sinks: [native, browser, log]
+  restart_grace: 60s
+  default_cooldown: 30m
+  max_events_kept: 200
+  poll_when_no_clients: true
+  rules: []
+  # Example rules:
+  #
+  # rules:
+  #   - id: btc-100k                # stable; keys persisted arm state
+  #     name: "BTC above 100k"
+  #     severity: warn              # info|warn|critical
+  #     scope: {coin: BTC}          # or codes: [] | watchlist: true | top: 100
+  #     condition:
+  #       metric: price             # price|delta|volume|cap|rank|liquidity|ath_distance
+  #       op: crosses_above         # gt|gte|lt|lte|crosses_above|crosses_below|abs_gt
+  #       value: 100000
+  #       min_duration: 0s          # condition must hold this long first
+  #     cooldown: 30m
+  #     rearm: on_exit              # on_exit|after_cooldown|once_per_day|manual
+  #     hysteresis_pct: 0.5         # stops 99,999<->100,001 firing repeatedly
+  #     max_fires_per_day: 20
+  #
+  #   - id: watchlist-swing
+  #     name: "Watchlist 10% day move"
+  #     severity: info
+  #     scope: {watchlist: true}
+  #     condition:
+  #       metric: delta
+  #       window: day               # required for metric delta
+  #       op: abs_gt
+  #       value: 10                 # percent, not a multiplier
+  #     cooldown: 1h
+  #     rearm: after_cooldown
+
+debug:
+  enabled: false
+  pprof: false
