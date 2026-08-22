@@ -19,6 +19,7 @@ check:
 	gofmt -l . | tee /dev/stderr | (! read)
 	go vet ./...
 	go test -race ./...
+	go run ./tools/check-contrast
 	go run ./tools/build-web
 
 # Optional type check. esbuild strips TypeScript types without checking them.

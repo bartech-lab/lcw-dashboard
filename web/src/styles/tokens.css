@@ -27,9 +27,11 @@
   --divider: #e1e0d9;
 
   /* Sign, not hue, is authoritative. Up-green and down-red measure DeltaE 4.6
-     apart under protanopia, so the glyph and the sign carry the meaning. */
-  --delta-up: #006300;        /*  7.35:1 */
-  --delta-down: #d03b3b;      /*  4.68:1 */
+     apart under protanopia, so the glyph and the sign carry the meaning.
+     A vivid exchange green cannot pass AA on a near-white surface, so light
+     mode runs deeper than dark mode does. */
+  --delta-up: #15803d;        /*  4.89:1 */
+  --delta-down: #cf2130;      /*  5.23:1 */
   --delta-flat: #6b6a66;
 
   --status-live: #0ca30c;
@@ -95,8 +97,8 @@
     --border-strong: #383835;
     --divider: #2c2c2a;
 
-    --delta-up: #0ca30c;        /*  5.19:1 */
-    --delta-down: #e66767;      /*  5.39:1 */
+    --delta-up: #0ecb81;        /*  8.19:1 */
+    --delta-down: #f6465d;      /*  4.94:1 */
     --delta-flat: #a3a29b;
 
     --status-live: #0ca30c;
@@ -139,8 +141,8 @@
   --border-strong: #383835;
   --divider: #2c2c2a;
 
-  --delta-up: #0ca30c;
-  --delta-down: #e66767;
+  --delta-up: #0ecb81;        /*  8.19:1 */
+  --delta-down: #f6465d;      /*  4.94:1 */
   --delta-flat: #a3a29b;
 
   --status-live: #0ca30c;
