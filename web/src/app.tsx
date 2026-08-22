@@ -311,9 +311,19 @@ function SearchBox() {
                 <b>{fmt.displayCode(r.code)}</b>
                 <span class="coin-name">{r.name}</span>
                 <span class="rank">
-                  {r.inWatchlist ? "on watchlist" : `#${r.rank}`}
+                  {r.inWatchlist ? "remove" : "add"} &middot; #{r.rank}
                 </span>
               </button>
+              <a
+                class="search-ext"
+                href={fmt.lcwCoinUrl(r.code, r.name)}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Open ${r.name} on livecoinwatch.com`}
+              >
+                <span aria-hidden="true">↗</span>
+                <span class="sr-only">open {r.name} on livecoinwatch.com</span>
+              </a>
             </li>
           ))}
         </ul>
@@ -677,12 +687,21 @@ function Cell({ id, coin }: { id: ColumnId; coin: CoinRow }) {
   if (id === "coin") {
     return (
       <td data-col={id} class={cls}>
-        <a class="coin" href={`#/coin/${coin.code}`}>
+        <a
+          class="coin"
+          href={fmt.lcwCoinUrl(coin.code, coin.name)}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           <img src={coin.icons.png32 || coin.icons.png64} alt="" width="24" height="24" loading="lazy" />
           <span class="coin-labels">
-            <span class="coin-code">{fmt.displayCode(coin.code)}</span>
+            <span class="coin-code">
+              {fmt.displayCode(coin.code)}
+              <span class="ext" aria-hidden="true">↗</span>
+            </span>
             <span class="coin-name">{coin.name}</span>
           </span>
+          <span class="sr-only">opens livecoinwatch.com in a new tab</span>
         </a>
       </td>
     );
@@ -800,7 +819,8 @@ function installHotkeys(): void {
         break;
       case "?":
         e.preventDefault();
-        announce("Shortcuts: j and k move between rows, Enter opens a coin, f toggles favourite, slash focuses search.");
+        announce("Shortcuts: j and k move between rows, Enter opens the coin on " +
+          "livecoinwatch.com, f toggles favourite, slash focuses search.");
         break;
     }
   });

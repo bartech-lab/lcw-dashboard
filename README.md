@@ -6,7 +6,7 @@ frontend embedded, meant to sit open in a background browser tab all day.
 - Sortable, configurable coin table: rank, coin, price, market cap, volume,
   liquidity, and six percentage-change windows
 - Watchlist that works for coins outside the top 100
-- Market overview strip and a per-coin detail view with a real chart
+- Market overview strip; clicking a coin opens its page on livecoinwatch.com
 - Refresh timer showing data age and time to the next update
 - Light, dark and auto themes; configurable locale; 24-hour clock throughout
 - Desktop alert notifications that fire even when no browser is open

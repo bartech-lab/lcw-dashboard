@@ -198,6 +198,20 @@ export function displayCode(code: string): string {
   return trimmed || code;
 }
 
+/**
+ * The coin's page on livecoinwatch.com.
+ *
+ * The slug is name-then-code, as in "Hyperliquid-______HYPE". Verified against
+ * the live site: only the part after the last hyphen resolves the coin, so
+ * "Zzz_Wrong_Name-BCH" still reaches Bitcoin Cash. The name is therefore
+ * cosmetic, and every non-alphanumeric character in it becomes an underscore so
+ * the separating hyphen stays the only one in the slug.
+ */
+export function lcwCoinUrl(code: string, name: string): string {
+  const slug = (name || code).trim().replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  return `https://www.livecoinwatch.com/price/${slug || "Coin"}-${encodeURIComponent(code)}`;
+}
+
 export function days(v: number, locale: string): string {
   if (!Number.isFinite(v) || v <= 0) return DASH;
   return count(v, locale) + "d";
