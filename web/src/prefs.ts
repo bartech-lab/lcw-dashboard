@@ -3,7 +3,7 @@ import type { Density, Theme, View } from "./types";
 import { ALL_COLUMNS, DEFAULT_ORDER, type ColumnId, isColumn, columnDef } from "./columns";
 
 export const PREFS_KEY = "lcwd:prefs";
-export const PREFS_VERSION = 1;
+export const PREFS_VERSION = 2;
 
 export interface Preset { name: string; visible: Partial<Record<ColumnId, boolean>>; order: ColumnId[] }
 
@@ -57,8 +57,13 @@ export function defaults(): Prefs {
 type Migration = (o: Record<string, unknown>) => Record<string, unknown>;
 
 // Adding or removing a column needs no migration: reconcile handles it. Bump
-// PREFS_VERSION only for a genuine shape change.
-const MIGRATIONS: Record<number, Migration> = {};
+// PREFS_VERSION only for a genuine shape change, or to correct a bad default.
+const MIGRATIONS: Record<number, Migration> = {
+  // v1 shipped a page size of 50, which hid half of a page that costs the same
+  // single credit either way. Only the old default is raised; a deliberate 10 or
+  // 25 is left alone.
+  1: (o) => ({ ...o, v: 2, pageSize: o.pageSize === 50 ? 100 : o.pageSize }),
+};
 
 export function loadPrefs(): Prefs {
   let raw: Record<string, unknown> | null = null;

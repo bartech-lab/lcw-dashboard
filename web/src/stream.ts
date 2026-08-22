@@ -227,7 +227,9 @@ function postVisibility(visible: boolean): void {
     navigator.sendBeacon("/api/control", new Blob([body], { type: "application/json" }));
     return;
   }
-  void control({ visible });
+  // Always send the full state. Sending visibility alone once let the server
+  // fall back to its configured default view and discard the user's choice.
+  void control({ visible, view: prefs.view.value, currency: prefs.currency.value });
 }
 
 export async function refresh(what = "coins"): Promise<ControlReply | null> {

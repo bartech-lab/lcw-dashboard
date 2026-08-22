@@ -106,16 +106,18 @@ const (
 	cmdReconciled
 	cmdIndexDone
 	cmdPrime
+	cmdClientState
 )
 
 type command struct {
-	kind     cmdKind
-	clientID string
-	view     snapshot.View
-	currency string
-	visible  bool
-	what     string
-	reply    chan RefreshReply
+	kind       cmdKind
+	clientID   string
+	view       snapshot.View
+	currency   string
+	visible    bool
+	what       string
+	reply      chan RefreshReply
+	stateReply chan [2]string
 }
 
 // RefreshReply tells the caller what the controller decided, so the UI can show
@@ -307,6 +309,15 @@ func (c *Controller) handleCommand(ctx context.Context, cmd command) {
 		c.publishStatus()
 		c.publishCredits()
 
+	case cmdClientState:
+		var out [2]string
+		if cl, ok := c.presence.clients[cmd.clientID]; ok {
+			out = [2]string{string(cl.View), cl.Currency}
+		}
+		if cmd.stateReply != nil {
+			cmd.stateReply <- out
+		}
+
 	case cmdPrime:
 		// Fetch once at startup regardless of the idle cadence, so the first
 		// browser to connect is painted immediately instead of waiting out a
@@ -418,6 +429,19 @@ func (c *Controller) defaultKey() ViewKey {
 		k.WatchHash = c.watch.Hash()
 	}
 	return k
+}
+
+// ClientState reports what a client is currently on, so a partial control
+// message can patch rather than reset. Empty values mean the client is unknown.
+func (c *Controller) ClientState(clientID string) (snapshot.View, string) {
+	reply := make(chan [2]string, 1)
+	c.send(command{kind: cmdClientState, clientID: clientID, stateReply: reply})
+	select {
+	case v := <-reply:
+		return snapshot.View(v[0]), v[1]
+	case <-time.After(time.Second):
+		return "", ""
+	}
 }
 
 // keyFor returns the view key a specific client is subscribed to.

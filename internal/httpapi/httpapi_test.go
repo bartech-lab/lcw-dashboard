@@ -506,3 +506,47 @@ func TestUpstreamStatusCostsNothing(t *testing.T) {
 		t.Errorf("body = %s", body)
 	}
 }
+
+// The presence heartbeat sends only visibility. Treating an absent field as a
+// default reset the client's view every 20 seconds, which is what made the
+// favourites view flip back to the top list.
+func TestPartialControlMessagePatchesRatherThanResets(t *testing.T) {
+	e := newEnv(t, nil)
+
+	res, body := e.send(t, "POST", "/api/control", map[string]any{
+		"clientId": "tab1", "view": "favourites", "currency": "USD", "visible": true,
+	})
+	if res.StatusCode != 200 {
+		t.Fatalf("status = %d: %s", res.StatusCode, body)
+	}
+	if !strings.Contains(body, "favourites|") {
+		t.Fatalf("initial switch did not take: %s", body)
+	}
+
+	// A heartbeat carrying only visibility, exactly as the client sends it.
+	_, body = e.send(t, "POST", "/api/control", map[string]any{
+		"clientId": "tab1", "visible": true,
+	})
+	if !strings.Contains(body, "favourites|") {
+		t.Errorf("a visibility-only heartbeat discarded the view: %s", body)
+	}
+
+	// And an explicit switch back still works.
+	_, body = e.send(t, "POST", "/api/control", map[string]any{
+		"clientId": "tab1", "view": "top",
+	})
+	if !strings.Contains(body, `"viewKey":"top|`) {
+		t.Errorf("explicit switch to top failed: %s", body)
+	}
+}
+
+// An unknown client still needs a sensible starting point.
+func TestControlForAnUnknownClientUsesTheConfiguredDefault(t *testing.T) {
+	e := newEnv(t, nil)
+	_, body := e.send(t, "POST", "/api/control", map[string]any{
+		"clientId": "never-seen", "visible": true,
+	})
+	if !strings.Contains(body, `"viewKey":"top|`) {
+		t.Errorf("want the configured default view, got: %s", body)
+	}
+}

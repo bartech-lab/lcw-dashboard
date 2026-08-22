@@ -12,11 +12,13 @@ import (
 	"github.com/bartech/lcw-dashboard/internal/watchlist"
 )
 
+// Pointers throughout: a control message is a patch, so an absent field must
+// leave the current value alone rather than reset it to a default.
 type controlRequest struct {
-	ClientID string `json:"clientId"`
-	Visible  *bool  `json:"visible"`
-	View     string `json:"view"`
-	Currency string `json:"currency"`
+	ClientID string  `json:"clientId"`
+	Visible  *bool   `json:"visible"`
+	View     *string `json:"view"`
+	Currency *string `json:"currency"`
 }
 
 // handleControl is the single client-to-server channel: visibility, view and
@@ -32,12 +34,25 @@ func (s *Server) handleControl(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "clientId required", "")
 		return
 	}
-	view := snapshot.View(orDefault(req.View, s.cfg.Coins.DefaultView))
+	// Start from what the client already has, so a heartbeat that carries only
+	// visibility cannot discard the view the user chose.
+	view, currency := s.ctrl.ClientState(req.ClientID)
+	if view == "" {
+		view = snapshot.View(s.cfg.Coins.DefaultView)
+	}
+	if currency == "" {
+		currency = s.cfg.Currency.Default
+	}
+	if req.View != nil {
+		view = snapshot.View(*req.View)
+	}
+	if req.Currency != nil && *req.Currency != "" {
+		currency = *req.Currency
+	}
 	if view != snapshot.ViewTop && view != snapshot.ViewFavourites {
 		writeError(w, http.StatusBadRequest, "unknown view", string(view))
 		return
 	}
-	currency := orDefault(req.Currency, s.cfg.Currency.Default)
 	if !s.currencyAllowed(currency) {
 		// Rejected locally rather than spending a credit on a doomed request.
 		writeError(w, http.StatusBadRequest, "currency not offered", currency)
