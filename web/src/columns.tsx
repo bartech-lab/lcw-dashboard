@@ -53,8 +53,8 @@ function deltaColumn(id: ColumnId, w: DeltaWindow, label: string, visible: boole
 export const ALL_COLUMNS: ColumnDef[] = [
   {
     id: "rank", label: "#", short: "#", group: "identity", align: "left",
-    // 26px heart, an 8px gap, and room for a five-digit rank.
-    width: 92, locked: true, defaultVisible: true, sortable: true,
+    // 26px heart, a 6px gap, and room for a five-digit rank.
+    width: 80, locked: true, defaultVisible: true, sortable: true,
     apiSort: "rank",
     value: (c) => (c.rank > 0 ? c.rank : null),
   },
